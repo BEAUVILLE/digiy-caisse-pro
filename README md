@@ -1,0 +1,26 @@
+# 🦅 DIGIY POS — Démo Boutique Vêtements
+### Caisse de démonstration (publique) • 0% commission • Paiement direct
+
+Cette version est une **caisse de démo** pensée pour présenter DIGIY POS à un client **sans exposer** une boutique réelle.
+Produits, prix, stocks et tickets sont **fictifs**.
+
+> Objectif : montrer l’expérience, pas les données d’un vrai commerce.
+
+---
+
+## ✅ Fonctionnalités
+
+- 🛍️ Catalogue produits (Homme / Femme / Enfant / Accessoires)
+- 🎨 Variantes **taille** + **couleur** (chips)
+- 🧺 Panier : + / − / retirer
+- 🎯 Remise (%) appliquée au panier
+- 💳 Paiement (démo) : **Wave / Cash / Carte**
+- 🧾 Ticket **imprimable** (format thermique 72mm)
+- 📚 Historique (12 derniers) via `localStorage`
+- 🧹 Réinitialisation complète (panier + historique)
+- 📱 Mobile-first (présentation pro sur téléphone)
+
+---
+
+## 🗂️ Structure du projet
+
