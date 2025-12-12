@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>DIGIY POS — Démo Boutique Vêtements</title>
+  <meta name="theme-color" content="#0A1128" />
+  <style>
+    :root{
+      --bg:#0b1020;
+      --card:#0f172a;
+      --card2:#111c3a;
+      --ink:#f8fafc;
+      --muted:#a8b3cf;
+      --line:rgba(148,163,184,.22);
+      --accent:#facc15; /* or DIGIY */
+      --accent2:#22c55e;
+      --danger:#fb7185;
+      --blue:#38bdf8;
+      --shadow:0 18px 50px rgba(0,0,0,.35);
+      --r:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial;
+      background: radial-gradient(1200px 800px at 15% 0%, rgba(56,189,248,.18), transparent 55%),
+                  radial-gradient(900px 700px at 90% 10%, rgba(250,204,21,.14), transparent 50%),
+                  linear-gradient(180deg, #070a15, var(--bg));
+      color:var(--ink);
+    }
+    .wrap{max-width:1200px;margin:0 auto;padding:18px 14px 28px}
+    .top{
+      display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+      padding:16px 16px;border:1px solid var(--line);border-radius:var(--r);
+      background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+      box-shadow: var(--shadow);
+      position: sticky; top: 10px; z-index: 10; backdrop-filter: blur(10px);
+    }
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{
+      width:44px;height:44px;border-radius:14px;
+      background: linear-gradient(135deg, rgba(250,204,21,.95), rgba(56,189,248,.9));
+      display:grid;place-items:center;color:#06101f;font-weight:900;
+      box-shadow: 0 10px 25px rgba(250,204,21,.18);
+      user-select:none;
+    }
+    .brand h1{margin:0;font-size:1.05rem;letter-spacing:.2px}
+    .brand p{margin:2px 0 0;color:var(--muted);font-size:.88rem}
+    .pill{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:8px 12px;border-radius:999px;
+      border:1px solid var(--line);
+      background: rgba(15,23,42,.55);
+      color: var(--muted);
+      font-weight:700;font-size:.85rem;
+    }
+    .pill b{color:#fff}
+    .ctaRow{display:flex;gap:10px;flex-wrap:wrap}
+    button, .btn{
+      border:0;cursor:pointer;
+      padding:10px 12px;border-radius:12px;
+      font-weight:900;
+      background: rgba(250,204,21,.95);
+      color:#0b1020;
+      transition: transform .15s ease, filter .15s ease;
+      box-shadow: 0 12px 30px rgba(250,204,21,.16);
+    }
+    button:hover,.btn:hover{transform:translateY(-1px);filter:brightness(.98)}
+    .btn2{
+      background: rgba(34,197,94,.92);
+      color:#07130c;
+      box-shadow: 0 12px 30px rgba(34,197,94,.14);
+    }
+    .btn3{
+      background: rgba(148,163,184,.16);
+      color: var(--ink);
+      border:1px solid var(--line);
+      box-shadow:none;
+    }
+    .grid{
+      margin-top:14px;
+      display:grid; gap:14px;
+      grid-template-columns: 1.6fr 1fr;
+    }
+    @media (max-width:980px){ .grid{grid-template-columns:1fr} .top{position:relative;top:auto} }
+    .card{
+      background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid var(--line);
+      border-radius:var(--r);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .card h2{
+      margin:0;padding:14px 14px;
+      font-size:1.02rem;
+      border-bottom:1px solid var(--line);
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+    }
+    .sub{color:var(--muted);font-weight:700;font-size:.9rem}
+    .body{padding:14px}
+    .toolbar{
+      display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:12px;
+    }
+    .search{
+      flex:1;min-width:240px;
+      display:flex;gap:10px;align-items:center;
+      padding:10px 12px;border-radius:14px;
+      border:1px solid var(--line);
+      background: rgba(2,6,23,.55);
+    }
+    .search input{
+      width:100%;border:0;outline:0;background:transparent;color:var(--ink);
+      font-weight:800;font-size:.95rem;
+    }
+    select{
+      border:1px solid var(--line); background: rgba(2,6,23,.55); color: var(--ink);
+      padding:10px 12px;border-radius:14px;font-weight:800;
+    }
+    .products{
+      display:grid;grid-template-columns: repeat(3, minmax(0, 1fr)); gap:12px;
+    }
+    @media (max-width:980px){ .products{grid-template-columns: repeat(2, minmax(0, 1fr));} }
+    @media (max-width:520px){ .products{grid-template-columns: 1fr;} }
+    .prod{
+      padding:12px;border-radius:16px;border:1px solid var(--line);
+      background: rgba(15,23,42,.6);
+      display:flex;flex-direction:column;gap:10px;
+    }
+    .tag{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:6px 10px;border-radius:999px;
+      background: rgba(56,189,248,.12);
+      border:1px solid rgba(56,189,248,.22);
+      color:#c8ecff;font-weight:900;font-size:.78rem;
+      width:max-content;
+    }
+    .title{font-weight:950;font-size:1.02rem;line-height:1.15}
+    .meta{display:flex;gap:8px;flex-wrap:wrap;color:var(--muted);font-weight:800;font-size:.86rem}
+    .price{
+      font-weight:1000;font-size:1.12rem;color:#fff;
+      display:flex;align-items:center;justify-content:space-between;gap:10px;
+    }
+    .stock{
+      font-weight:900;font-size:.85rem;color:rgba(255,255,255,.9)
+    }
+    .stock.low{color: #ffd1dc}
+    .row{display:flex;gap:10px;flex-wrap:wrap}
+    .chip{
+      padding:6px 10px;border-radius:999px;border:1px solid var(--line);
+      background: rgba(148,163,184,.12);
+      font-weight:900;font-size:.78rem;color:var(--ink);
+      cursor:pointer; user-select:none;
+    }
+    .chip.active{border-color: rgba(250,204,21,.55); background: rgba(250,204,21,.14)}
+    .add{
+      width:100%;
+      display:flex;align-items:center;justify-content:center;gap:10px;
+      padding:11px 12px;border-radius:14px;
+      background: rgba(250,204,21,.95);
+      color:#07121f;font-weight:1000;
+      box-shadow: 0 12px 30px rgba(250,204,21,.16);
+    }
+    .cartLine{
+      display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+      padding:12px 0;border-bottom:1px dashed rgba(148,163,184,.25);
+    }
+    .cartLine:last-child{border-bottom:0}
+    .cartLeft{min-width:0}
+    .cartName{font-weight:1000}
+    .cartMeta{color:var(--muted);font-weight:800;font-size:.86rem; margin-top:3px}
+    .qtyRow{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+    .qtyBtn{
+      padding:7px 10px;border-radius:12px;background: rgba(148,163,184,.14);
+      border:1px solid var(--line); color:var(--ink); font-weight:1000;
+    }
+    .qty{min-width:34px;text-align:center;font-weight:1000}
+    .cartRight{text-align:right}
+    .lineTotal{font-weight:1000}
+    .remove{color:var(--danger);font-weight:1000;font-size:.9rem;cursor:pointer}
+    .totals{
+      margin-top:14px;
+      padding-top:12px;border-top:1px solid var(--line);
+      display:grid;gap:8px;
+    }
+    .trow{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:900;color:rgba(255,255,255,.92)}
+    .trow small{color:var(--muted);font-weight:800}
+    .grand{
+      font-size:1.18rem; font-weight:1100; color:#fff;
+      border-top:1px dashed rgba(148,163,184,.25); padding-top:10px; margin-top:6px;
+    }
+    .payBox{
+      margin-top:12px;
+      display:grid; gap:10px;
+    }
+    .payRow{display:flex;gap:10px;flex-wrap:wrap}
+    .pay{
+      flex:1;
+      padding:11px 12px;border-radius:14px;border:1px solid var(--line);
+      background: rgba(2,6,23,.55);
+      color: var(--ink);
+      font-weight:900;
+      min-width:180px;
+    }
+    .note{
+      border:1px dashed rgba(148,163,184,.35);
+      background: rgba(148,163,184,.08);
+      padding:12px;border-radius:14px;color:var(--muted);font-weight:800;font-size:.9rem
+    }
+    .demoBanner{
+      margin-top:12px;
+      padding:10px 12px;border-radius:14px;
+      border:1px solid rgba(250,204,21,.35);
+      background: rgba(250,204,21,.10);
+      color:#ffeaa7;font-weight:900;font-size:.9rem
+    }
+    .toast{
+      position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+      padding:10px 12px;border-radius:14px;
+      border:1px solid var(--line);
+      background: rgba(2,6,23,.75);
+      color:#fff;font-weight:900;
+      box-shadow: var(--shadow);
+      display:none;
+      max-width: calc(100% - 24px);
+      text-align:center;
+      z-index:999;
+    }
+    /* Ticket print */
+    .printArea{display:none}
+    @media print{
+      body{background:#fff;color:#000}
+      .wrap,.top,.grid,.toast{display:none !important}
+      .printArea{display:block}
+      .ticket{
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size:12px; line-height:1.35;
+        width: 72mm; padding: 8mm;
+      }
+      .ticket h3{margin:0 0 6px}
+      .ticket .muted{color:#333}
+      .ticket hr{border:0;border-top:1px dashed #999;margin:8px 0}
+      .ticket .row{display:flex;justify-content:space-between;gap:10px}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="top">
+      <div class="brand">
+        <div class="logo">🦅</div>
+        <div>
+          <h1>DIGIY POS — <span style="color:var(--accent)">Démo Boutique Vêtements</span></h1>
+          <p>Panier • Tailles • Couleurs • Remises • Paiements • Ticket</p>
+        </div>
+      </div>
+
+      <span class="pill">Mode : <b>DEMO</b> • Devise : <b>XOF</b></span>
+
+      <div class="ctaRow">
+        <button class="btn3" id="btnReset">🧹 Réinitialiser</button>
+        <button class="btn3" id="btnHistory">🧾 Historique</button>
+        <button class="btn2" id="btnCheckout">✅ Encaisser</button>
+      </div>
+    </header>
+
+    <div class="grid">
+      <!-- PRODUITS -->
+      <section class="card">
+        <h2>
+          🛍️ Produits
+          <span class="sub">Vêtements / Accessoires (démo)</span>
+        </h2>
+        <div class="body">
+          <div class="toolbar">
+            <div class="search" title="Recherche">
+              🔎 <input id="q" placeholder="Cherche: boubou, robe, jean, t-shirt..." autocomplete="off"/>
+            </div>
+            <select id="cat">
+              <option value="all">Toutes catégories</option>
+              <option value="Homme">Homme</option>
+              <option value="Femme">Femme</option>
+              <option value="Enfant">Enfant</option>
+              <option value="Accessoires">Accessoires</option>
+            </select>
+          </div>
+
+          <div class="products" id="products"></div>
+
+          <div class="demoBanner">
+            ✅ Démo publique : produits, prix & stocks sont fictifs. Ticket marqué “DEMO”.
+          </div>
+        </div>
+      </section>
+
+      <!-- PANIER -->
+      <section class="card">
+        <h2>
+          🧺 Panier
+          <span class="sub"><span id="cartCount">0</span> article(s)</span>
+        </h2>
+        <div class="body">
+          <div id="cart"></div>
+
+          <div class="totals">
+            <div class="trow"><span>Sous-total</span><span id="subTotal">0</span></div>
+            <div class="trow">
+              <span>Remise <small>(%)</small></span>
+              <span style="display:flex;gap:10px;align-items:center">
+                <input id="discount" type="number" min="0" max="80" value="0"
+                       style="width:90px;padding:9px 10px;border-radius:12px;border:1px solid var(--line);background:rgba(2,6,23,.55);color:#fff;font-weight:1000;">
+                <span id="discAmount">-0</span>
+              </span>
+            </div>
+            <div class="trow">
+              <span>TVA <small>(démo)</small></span>
+              <span id="tax">0</span>
+            </div>
+            <div class="trow grand"><span>Total</span><span id="grand">0</span></div>
+          </div>
+
+          <div class="payBox">
+            <div class="payRow">
+              <select class="pay" id="payMethod">
+                <option value="WAVE">💛 Wave</option>
+                <option value="CASH">💵 Cash</option>
+                <option value="CARD">💳 Carte</option>
+              </select>
+              <input class="pay" id="customer" placeholder="Client (optionnel)" />
+            </div>
+            <div class="payRow">
+              <button id="btnPrint" class="btn3" style="flex:1">🖨️ Ticket</button>
+              <button id="btnSave" class="btn2" style="flex:1">✅ Encaisser</button>
+            </div>
+
+            <div class="note">
+              Astuce démo : clique sur un produit → choisis <b>taille</b> + <b>couleur</b> → ajoute au panier.
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- PRINT TICKET -->
+  <div class="printArea">
+    <div class="ticket" id="ticket"></div>
+  </div>
+
+<script>
+(() => {
+  const fmt = (n) => new Intl.NumberFormat('fr-FR').format(Math.round(n)) + " XOF";
+  const uid = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
+
+  // ====== DATA (DEMO) ======
+  const PRODUCTS = [
+    { id:"p1",  name:"Boubou Premium",         cat:"Homme",      price: 22000, sizes:["M","L","XL"], colors:["Bleu nuit","Blanc","Bordeaux"], stock: 6, tag:"Tradition" },
+    { id:"p2",  name:"Chemise Classy",         cat:"Homme",      price: 12000, sizes:["S","M","L","XL"], colors:["Blanc","Noir","Bleu"], stock: 10, tag:"Business" },
+    { id:"p3",  name:"Jean Coupe Droite",      cat:"Homme",      price: 16000, sizes:["38","40","42","44"], colors:["Denim","Noir"], stock: 8, tag:"Urban" },
+    { id:"p4",  name:"Robe Wax Élégance",      cat:"Femme",      price: 25000, sizes:["S","M","L"], colors:["Wax Rouge","Wax Bleu","Wax Vert"], stock: 5, tag:"Wax" },
+    { id:"p5",  name:"Ensemble Tailleur",      cat:"Femme",      price: 32000, sizes:["S","M","L","XL"], colors:["Noir","Beige","Bleu"], stock: 4, tag:"Pro" },
+    { id:"p6",  name:"Abaya Moderne",          cat:"Femme",      price: 28000, sizes:["M","L","XL"], colors:["Noir","Gris","Sable"], stock: 6, tag:"Chic" },
+    { id:"p7",  name:"T-shirt Basic",          cat:"Enfant",     price: 4500,  sizes:["4","6","8","10"], colors:["Blanc","Jaune","Bleu"], stock: 12, tag:"Kids" },
+    { id:"p8",  name:"Jogging Confort",        cat:"Enfant",     price: 8500,  sizes:["4","6","8","10"], colors:["Gris","Noir"], stock: 9, tag:"Sport" },
+    { id:"p9",  name:"Casquette DIGIY",        cat:"Accessoires",price: 6000,  sizes:["TU"], colors:["Noir","Bleu","Blanc"], stock: 14, tag:"Style" },
+    { id:"p10", name:"Sac à main Premium",     cat:"Accessoires",price: 30000, sizes:["TU"], colors:["Noir","Camel","Rouge"], stock: 3, tag:"Luxe" },
+    { id:"p11", name:"Sandales Cuir",          cat:"Accessoires",price: 15000, sizes:["40","41","42","43"], colors:["Marron","Noir"], stock: 7, tag:"Cuir" },
+    { id:"p12", name:"Pagne (6 yards)",        cat:"Femme",      price: 18000, sizes:["TU"], colors:["Motif 1","Motif 2","Motif 3"], stock: 11, tag:"Pagne" },
+  ];
+
+  // ====== STORAGE ======
+  const KEY = "digiy_pos_demo_clothing_v1";
+  const HKEY = "digiy_pos_demo_history_v1";
+  const load = () => JSON.parse(localStorage.getItem(KEY) || "[]");
+  const save = (cart) => localStorage.setItem(KEY, JSON.stringify(cart));
+  const loadH = () => JSON.parse(localStorage.getItem(HKEY) || "[]");
+  const saveH = (h) => localStorage.setItem(HKEY, JSON.stringify(h));
+
+  let cart = load(); // items: {key,id,name,cat,price,size,color,qty}
+
+  // ====== UI refs ======
+  const $products = document.querySelector("#products");
+  const $cart = document.querySelector("#cart");
+  const $q = document.querySelector("#q");
+  const $cat = document.querySelector("#cat");
+  const $count = document.querySelector("#cartCount");
+  const $sub = document.querySelector("#subTotal");
+  const $disc = document.querySelector("#discount");
+  const $discAmount = document.querySelector("#discAmount");
+  const $tax = document.querySelector("#tax");
+  const $grand = document.querySelector("#grand");
+  const $toast = document.querySelector("#toast");
+  const $payMethod = document.querySelector("#payMethod");
+  const $customer = document.querySelector("#customer");
+
+  function toast(msg){
+    $toast.textContent = msg;
+    $toast.style.display = "block";
+    clearTimeout(toast._t);
+    toast._t = setTimeout(()=> $toast.style.display="none", 2100);
+  }
+
+  // ====== Render products with variant chips ======
+  function renderProducts(){
+    const query = ($q.value || "").toLowerCase().trim();
+    const cat = $cat.value;
+    const list = PRODUCTS.filter(p => {
+      const inCat = (cat === "all") ? true : p.cat === cat;
+      const inQuery = !query ? true : (p.name.toLowerCase().includes(query) || p.tag.toLowerCase().includes(query));
+      return inCat && inQuery;
+    });
+
+    $products.innerHTML = list.map(p => {
+      const low = p.stock <= 3 ? "low" : "";
+      const sizeChips = p.sizes.map((s,i)=> `<span class="chip ${i===0?'active':''}" data-kind="size" data-val="${s}">${s}</span>`).join("");
+      const colorChips = p.colors.map((c,i)=> `<span class="chip ${i===0?'active':''}" data-kind="color" data-val="${c}">${c}</span>`).join("");
+
+      return `
+        <div class="prod" data-id="${p.id}">
+          <span class="tag">${p.tag}</span>
+          <div class="title">${p.name}</div>
+          <div class="meta">Catégorie: <b style="color:#fff">${p.cat}</b></div>
+          <div class="price">
+            <span>${fmt(p.price)}</span>
+            <span class="stock ${low}">Stock: ${p.stock}</span>
+          </div>
+
+          <div class="row" aria-label="Tailles">${sizeChips}</div>
+          <div class="row" aria-label="Couleurs">${colorChips}</div>
+
+          <button class="add">➕ Ajouter au panier</button>
+        </div>
+      `;
+    }).join("");
+
+    // chip toggle
+    $products.querySelectorAll(".prod").forEach(card => {
+      card.querySelectorAll(".chip").forEach(ch => {
+        ch.addEventListener("click", () => {
+          const kind = ch.dataset.kind;
+          card.querySelectorAll(`.chip[data-kind="${kind}"]`).forEach(x=>x.classList.remove("active"));
+          ch.classList.add("active");
+        });
+      });
+
+      card.querySelector(".add").addEventListener("click", () => {
+        const id = card.dataset.id;
+        const p = PRODUCTS.find(x => x.id === id);
+        if (!p) return;
+
+        const size = card.querySelector(`.chip[data-kind="size"].active`)?.dataset.val || p.sizes[0];
+        const color = card.querySelector(`.chip[data-kind="color"].active`)?.dataset.val || p.colors[0];
+
+        // unique key per variant
+        const key = `${id}__${size}__${color}`;
+        const existing = cart.find(i => i.key === key);
+        if (existing) existing.qty += 1;
+        else cart.push({ key, id, name:p.name, cat:p.cat, price:p.price, size, color, qty:1 });
+
+        save(cart);
+        renderCart();
+        toast("Ajouté ✅");
+      });
+    });
+  }
+
+  function renderCart(){
+    if (!cart.length){
+      $cart.innerHTML = `<div class="note">Panier vide. Ajoute un produit à gauche 👈</div>`;
+    } else {
+      $cart.innerHTML = cart.map(item => `
+        <div class="cartLine">
+          <div class="cartLeft">
+            <div class="cartName">${item.name}</div>
+            <div class="cartMeta">${item.cat} • Taille <b style="color:#fff">${item.size}</b> • Couleur <b style="color:#fff">${item.color}</b></div>
+            <div class="qtyRow">
+              <button class="qtyBtn" data-act="dec" data-key="${item.key}">−</button>
+              <span class="qty">${item.qty}</span>
+              <button class="qtyBtn" data-act="inc" data-key="${item.key}">+</button>
+              <span class="remove" data-act="rm" data-key="${item.key}">Retirer</span>
+            </div>
+          </div>
+          <div class="cartRight">
+            <div class="lineTotal">${fmt(item.price * item.qty)}</div>
+          </div>
+        </div>
+      `).join("");
+
+      $cart.querySelectorAll("[data-act]").forEach(el => {
+        el.addEventListener("click", () => {
+          const act = el.dataset.act;
+          const key = el.dataset.key;
+          const it = cart.find(x => x.key === key);
+          if (!it) return;
+          if (act === "inc") it.qty += 1;
+          if (act === "dec") it.qty = Math.max(1, it.qty - 1);
+          if (act === "rm") cart = cart.filter(x => x.key !== key);
+          save(cart);
+          renderCart();
+        });
+      });
+    }
+
+    // totals
+    const sub = cart.reduce((a,i)=>a + i.price*i.qty, 0);
+    const discPct = Math.min(80, Math.max(0, Number($disc.value||0)));
+    const disc = sub * (discPct/100);
+    const taxable = Math.max(0, sub - disc);
+
+    // TVA demo: 0% par défaut (beaucoup de boutiques n'affichent pas la TVA au ticket)
+    const tvaPct = 0;
+    const tax = taxable * (tvaPct/100);
+
+    const grand = taxable + tax;
+
+    $count.textContent = cart.reduce((a,i)=>a+i.qty,0);
+    $sub.textContent = fmt(sub);
+    $discAmount.textContent = "-" + fmt(disc);
+    $tax.textContent = fmt(tax);
+    $grand.textContent = fmt(grand);
+  }
+
+  function buildTicket(order){
+    const lines = order.items.map(i => {
+      const label = `${i.name} (${i.size}/${i.color}) x${i.qty}`;
+      const total = fmt(i.price*i.qty);
+      return `<div class="row"><span>${escapeHtml(label)}</span><span>${escapeHtml(total)}</span></div>`;
+    }).join("");
+
+    const t = `
+      <h3>DIGIY POS — TICKET (DEMO)</h3>
+      <div class="muted">Boutique Vêtements • ${escapeHtml(new Date(order.createdAt).toLocaleString('fr-FR'))}</div>
+      <div class="muted">Commande: ${escapeHtml(order.code)}</div>
+      ${order.customer ? `<div class="muted">Client: ${escapeHtml(order.customer)}</div>` : ``}
+      <hr/>
+      ${lines}
+      <hr/>
+      <div class="row"><span>Sous-total</span><span>${escapeHtml(fmt(order.subTotal))}</span></div>
+      <div class="row"><span>Remise</span><span>-${escapeHtml(fmt(order.discountAmount))}</span></div>
+      <div class="row"><span>Total</span><span>${escapeHtml(fmt(order.total))}</span></div>
+      <div class="row"><span>Paiement</span><span>${escapeHtml(order.paymentMethod)}</span></div>
+      <hr/>
+      <div class="muted">Merci • DIGIYLYFE 🦅</div>
+      <div class="muted">*Ticket démo — non officiel*</div>
+    `;
+    document.querySelector("#ticket").innerHTML = t;
+  }
+
+  function escapeHtml(str){
+    return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[s]));
+  }
+
+  function checkout({print=false}={}){
+    if (!cart.length){ toast("Panier vide 😅"); return; }
+
+    const sub = cart.reduce((a,i)=>a + i.price*i.qty, 0);
+    const discPct = Math.min(80, Math.max(0, Number($disc.value||0)));
+    const disc = sub * (discPct/100);
+    const total = Math.max(0, sub - disc);
+
+    const order = {
+      id: uid(),
+      code: "DEMO-" + Math.random().toString(10).slice(2,8),
+      createdAt: new Date().toISOString(),
+      items: JSON.parse(JSON.stringify(cart)),
+      subTotal: sub,
+      discountPct: discPct,
+      discountAmount: disc,
+      total,
+      paymentMethod: $payMethod.value,
+      customer: ($customer.value||"").trim()
+    };
+
+    const h = loadH();
+    h.unshift(order);
+    saveH(h.slice(0,50));
+
+    buildTicket(order);
+    if (print) window.print();
+
+    cart = [];
+    save(cart);
+    renderCart();
+    $customer.value = "";
+    toast("Encaissement ✅ (démo)");
+  }
+
+  function showHistory(){
+    const h = loadH();
+    if (!h.length){
+      alert("Historique vide pour l’instant.");
+      return;
+    }
+    const lines = h.slice(0,12).map(o =>
+      `${new Date(o.createdAt).toLocaleString('fr-FR')} • ${o.code} • ${fmt(o.total)} • ${o.paymentMethod}${o.customer?` • ${o.customer}`:''}`
+    ).join("\n");
+    alert("Historique (12 derniers)\n\n" + lines + "\n\nAstuce: on peut faire un écran historique plus beau si tu veux.");
+  }
+
+  // ====== Events ======
+  $q.addEventListener("input", renderProducts);
+  $cat.addEventListener("change", renderProducts);
+  $disc.addEventListener("input", renderCart);
+
+  document.querySelector("#btnSave").addEventListener("click", ()=> checkout({print:false}));
+  document.querySelector("#btnCheckout").addEventListener("click", ()=> checkout({print:false}));
+  document.querySelector("#btnPrint").addEventListener("click", ()=> checkout({print:true}));
+  document.querySelector("#btnHistory").addEventListener("click", showHistory);
+
+  document.querySelector("#btnReset").addEventListener("click", () => {
+    if (!confirm("Réinitialiser la démo (panier + historique) ?")) return;
+    localStorage.removeItem(KEY);
+    localStorage.removeItem(HKEY);
+    cart = [];
+    renderCart();
+    toast("Réinitialisé ✅");
+  });
+
+  // init
+  renderProducts();
+  renderCart();
+})();
+</script>
+</body>
+</html>
