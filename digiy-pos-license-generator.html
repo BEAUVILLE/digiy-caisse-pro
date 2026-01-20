@@ -70,7 +70,7 @@ textarea{
 
 <label>Durée licence</label>
 <select id="duration">
-  <option value="30">1 mois</option>
+  <option value="31">1 mois (31 jours)</option>
   <option value="180">6 mois</option>
   <option value="365" selected>1 an</option>
   <option value="730">2 ans</option>
@@ -84,127 +84,30 @@ textarea{
 <textarea id="out" placeholder="La licence DIGIY apparaîtra ici..."></textarea>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
-
 <script>
 /* ======================================================
-   DIGIY POS PRO ♾️ — OFFLINE TERRAIN FINAL
-   Démo 15 jours via QR
-   Licence PRO 31 jours renouvelable
-   Stockage local IndexedDB
+   DIGIY POS — LICENSE GENERATOR 👑
 ====================================================== */
 
-const DB_NAME="digiy_pos_db";
-const STORE="kv";
-const STATE_KEY="state";
+function generate(){
+  const duration = parseInt(document.getElementById("duration").value);
+  const device = document.getElementById("device").value.trim();
 
-/* ===== IndexedDB ===== */
-function db(){
- return new Promise((res,rej)=>{
-  const r=indexedDB.open(DB_NAME,1);
-  r.onupgradeneeded=e=>e.target.result.createObjectStore(STORE);
-  r.onsuccess=()=>res(r.result);
- });
-}
-async function saveState(){
- const d=await db();
- return new Promise(r=>{
-  const t=d.transaction(STORE,"readwrite");
-  t.objectStore(STORE).put(appState,STATE_KEY);
-  t.oncomplete=()=>r();
- });
-}
-async function loadState(){
- const d=await db();
- return new Promise(r=>{
-  const t=d.transaction(STORE,"readonly");
-  const q=t.objectStore(STORE).get(STATE_KEY);
-  q.onsuccess=()=>r(q.result);
- });
-}
+  const now = Date.now();
+  const exp = now + duration * 86400000;
 
-/* ===== STATE ===== */
-let appState={
- demoStart:null,
- demoDuration:15,
- licenseMeta:null,
- shopInfo:{name:"Ma Boutique"}
-};
+  const payload = {
+    exp: exp,
+    device: device || null,
+    issuer: "DIGIY"
+  };
 
-/* ===== DEMO ===== */
-function validDemo(){
- if(!appState.demoStart) return false;
- const start=new Date(appState.demoStart);
- return (Date.now()-start)<appState.demoDuration*86400000;
-}
-function demoDaysLeft(){
- if(!appState.demoStart) return 0;
- const diff=(Date.now()-new Date(appState.demoStart))/86400000;
- return Math.max(0,Math.ceil(appState.demoDuration-diff));
-}
-function triggerDemoFromCode(code){
- if(code==="DIGIY-DEMO-15" && !appState.demoStart){
-  appState.demoStart=new Date().toISOString();
-  saveState();
-  location.reload();
- }
-}
+  const encoded = btoa(JSON.stringify(payload));
+  const license = "DIGIY1." + encoded;
 
-/* ===== LICENCE ===== */
-function validLicense(){
- return appState.licenseMeta &&
-        Date.now()<new Date(appState.licenseMeta.exp).getTime();
+  document.getElementById("out").value = license;
 }
-function daysLeft(){
- if(!appState.licenseMeta) return 0;
- return Math.ceil((new Date(appState.licenseMeta.exp)-Date.now())/86400000);
-}
-
-/* ===== ACTIVATION PRO (SIMPLIFIÉE) ===== */
-async function activatePro(){
- const exp=Date.now()+31*86400000;
- appState.licenseMeta={exp};
- await saveState();
- location.reload();
-}
-
-/* ===== BLOCK ===== */
-function blockIfExpired(){
- if(validLicense()) return;
- if(validDemo()) return;
-
- document.body.innerHTML=`
- <div style="background:#020617;color:white;height:100vh;display:flex;align-items:center;justify-content:center">
-  <div style="background:#030712;padding:40px;border-radius:18px;border:1px solid gold;text-align:center">
-   <h2 style="color:gold">DIGIY POS verrouillé</h2>
-   <p>La Démo est terminée.<br>Active ta licence PRO pour continuer.</p>
-   <a href="https://wa.me/221771342889" style="background:gold;color:black;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:700">Activer</a>
-  </div>
- </div>`;
-}
-
-/* ===== BADGE HEADER ===== */
-function updateBadge(){
- const badge=document.getElementById("licenseBadge");
- if(validLicense()){
-  badge.innerHTML="🦅 PRO • "+daysLeft()+"j";
- }
- else if(validDemo()){
-  badge.innerHTML="🕒 DÉMO • "+demoDaysLeft()+"j";
- }
-}
-
-/* ===== INIT ===== */
-async function init(){
- const saved=await loadState();
- if(saved) appState=saved;
-
- blockIfExpired();
- updateBadge();
- setInterval(blockIfExpired,60000);
-}
-
-document.addEventListener("DOMContentLoaded",init);
 </script>
+
 </body>
 </html>
