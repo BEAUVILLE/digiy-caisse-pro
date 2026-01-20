@@ -84,92 +84,124 @@ textarea{
 <textarea id="out" placeholder="La licence DIGIY apparaîtra ici..."></textarea>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
+
 <script>
 /* ======================================================
-   DIGIY POS PRO ♾️ — VERSION OFFLINE LICENCE 31 JOURS
-   Stockage : IndexedDB
-   Licence : Signée Offline
-   Blocage automatique
+   DIGIY POS PRO ♾️ — OFFLINE TERRAIN FINAL
+   Démo 15 jours via QR
+   Licence PRO 31 jours renouvelable
+   Stockage local IndexedDB
 ====================================================== */
 
-const DB_NAME = "digiy_pos_db";
-const STORE = "kv";
-const STATE_KEY = "state";
+const DB_NAME="digiy_pos_db";
+const STORE="kv";
+const STATE_KEY="state";
 
-/* ===== IndexedDB simple ===== */
+/* ===== IndexedDB ===== */
 function db(){
-  return new Promise((res,rej)=>{
-    const r=indexedDB.open(DB_NAME,1);
-    r.onupgradeneeded=e=>e.target.result.createObjectStore(STORE);
-    r.onsuccess=()=>res(r.result);
-    r.onerror=()=>rej();
-  });
+ return new Promise((res,rej)=>{
+  const r=indexedDB.open(DB_NAME,1);
+  r.onupgradeneeded=e=>e.target.result.createObjectStore(STORE);
+  r.onsuccess=()=>res(r.result);
+ });
 }
-async function save(k,v){
-  const d=await db();
-  return new Promise(r=>{
-    const t=d.transaction(STORE,"readwrite");
-    t.objectStore(STORE).put(v,k);
-    t.oncomplete=()=>r();
-  });
+async function saveState(){
+ const d=await db();
+ return new Promise(r=>{
+  const t=d.transaction(STORE,"readwrite");
+  t.objectStore(STORE).put(appState,STATE_KEY);
+  t.oncomplete=()=>r();
+ });
 }
-async function load(k){
-  const d=await db();
-  return new Promise(r=>{
-    const t=d.transaction(STORE,"readonly");
-    const q=t.objectStore(STORE).get(k);
-    q.onsuccess=()=>r(q.result);
-  });
+async function loadState(){
+ const d=await db();
+ return new Promise(r=>{
+  const t=d.transaction(STORE,"readonly");
+  const q=t.objectStore(STORE).get(STATE_KEY);
+  q.onsuccess=()=>r(q.result);
+ });
 }
 
 /* ===== STATE ===== */
 let appState={
-  licenseMeta:null,
-  isDemo:false,
-  products:[],
-  cart:[],
-  history:[],
-  shopInfo:{name:"Ma Boutique"}
+ demoStart:null,
+ demoDuration:15,
+ licenseMeta:null,
+ shopInfo:{name:"Ma Boutique"}
 };
 
-/* ===== LICENCE CHECK ===== */
-function validLicense(){
-  return appState.licenseMeta && Date.now() < new Date(appState.licenseMeta.exp).getTime();
+/* ===== DEMO ===== */
+function validDemo(){
+ if(!appState.demoStart) return false;
+ const start=new Date(appState.demoStart);
+ return (Date.now()-start)<appState.demoDuration*86400000;
 }
-function daysLeft(){
-  if(!appState.licenseMeta) return 0;
-  return Math.ceil((new Date(appState.licenseMeta.exp)-Date.now())/86400000);
+function demoDaysLeft(){
+ if(!appState.demoStart) return 0;
+ const diff=(Date.now()-new Date(appState.demoStart))/86400000;
+ return Math.max(0,Math.ceil(appState.demoDuration-diff));
 }
-function blockIfExpired(){
-  if(!appState.isDemo && !validLicense()){
-    document.body.innerHTML=`
-    <div style="background:#020617;color:white;height:100vh;display:flex;align-items:center;justify-content:center">
-      <div style="text-align:center;background:#030712;padding:40px;border-radius:18px;border:1px solid gold">
-        <h2 style="color:gold">Licence expirée</h2>
-        <p>DIGIY POS verrouillé.<br>Renouvelez votre licence.</p>
-        <a href="https://wa.me/221771342889" style="color:black;background:gold;padding:12px 22px;border-radius:12px;text-decoration:none;font-weight:700">Renouveler</a>
-      </div>
-    </div>`;
-  }
+function triggerDemoFromCode(code){
+ if(code==="DIGIY-DEMO-15" && !appState.demoStart){
+  appState.demoStart=new Date().toISOString();
+  saveState();
+  location.reload();
+ }
 }
 
-/* ===== ACTIVATION LICENCE ===== */
-async function activateLicense(){
-  const exp=Date.now()+31*86400000;
-  appState.licenseMeta={exp};
-  await save(STATE_KEY,appState);
-  location.reload();
+/* ===== LICENCE ===== */
+function validLicense(){
+ return appState.licenseMeta &&
+        Date.now()<new Date(appState.licenseMeta.exp).getTime();
+}
+function daysLeft(){
+ if(!appState.licenseMeta) return 0;
+ return Math.ceil((new Date(appState.licenseMeta.exp)-Date.now())/86400000);
+}
+
+/* ===== ACTIVATION PRO (SIMPLIFIÉE) ===== */
+async function activatePro(){
+ const exp=Date.now()+31*86400000;
+ appState.licenseMeta={exp};
+ await saveState();
+ location.reload();
+}
+
+/* ===== BLOCK ===== */
+function blockIfExpired(){
+ if(validLicense()) return;
+ if(validDemo()) return;
+
+ document.body.innerHTML=`
+ <div style="background:#020617;color:white;height:100vh;display:flex;align-items:center;justify-content:center">
+  <div style="background:#030712;padding:40px;border-radius:18px;border:1px solid gold;text-align:center">
+   <h2 style="color:gold">DIGIY POS verrouillé</h2>
+   <p>La Démo est terminée.<br>Active ta licence PRO pour continuer.</p>
+   <a href="https://wa.me/221771342889" style="background:gold;color:black;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:700">Activer</a>
+  </div>
+ </div>`;
+}
+
+/* ===== BADGE HEADER ===== */
+function updateBadge(){
+ const badge=document.getElementById("licenseBadge");
+ if(validLicense()){
+  badge.innerHTML="🦅 PRO • "+daysLeft()+"j";
+ }
+ else if(validDemo()){
+  badge.innerHTML="🕒 DÉMO • "+demoDaysLeft()+"j";
+ }
 }
 
 /* ===== INIT ===== */
 async function init(){
-  const s=await load(STATE_KEY);
-  if(s) appState=s;
-  blockIfExpired();
+ const saved=await loadState();
+ if(saved) appState=saved;
 
-  if(validLicense()){
-    document.getElementById("licenseBadge").innerHTML="🦅 PRO • "+daysLeft()+"j";
-  }
+ blockIfExpired();
+ updateBadge();
+ setInterval(blockIfExpired,60000);
 }
 
 document.addEventListener("DOMContentLoaded",init);
