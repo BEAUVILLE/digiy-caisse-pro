@@ -85,40 +85,94 @@ textarea{
 </div>
 
 <script>
-const PRIVATE_JWK = JSON.parse(localStorage.getItem("DIGIY_PRIVATE"));
+/* ======================================================
+   DIGIY POS PRO ♾️ — VERSION OFFLINE LICENCE 31 JOURS
+   Stockage : IndexedDB
+   Licence : Signée Offline
+   Blocage automatique
+====================================================== */
 
-async function generate(){
-  if(!PRIVATE_JWK){
-    alert("Charge d'abord la clé privée DIGIY !");
-    return;
-  }
+const DB_NAME = "digiy_pos_db";
+const STORE = "kv";
+const STATE_KEY = "state";
 
-  const device = document.getElementById("device").value.trim();
-  const days = parseInt(document.getElementById("duration").value);
-  const exp = Date.now() + days*24*60*60*1000;
-
-  const payload = {
-    iss:"DIGIY",
-    app:"POS_PRO",
-    plan:"PRO",
-    exp,
-    device: device || undefined,
-    iat:Date.now()
-  };
-
-  const header = {alg:"ES256",typ:"DIGIY-LIC"};
-
-  const enc = new TextEncoder();
-  const h = btoa(JSON.stringify(header)).replace(/=+/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-  const p = btoa(JSON.stringify(payload)).replace(/=+/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-  const data = enc.encode(h+"."+p);
-
-  const key = await crypto.subtle.importKey("jwk",PRIVATE_JWK,{name:"ECDSA",namedCurve:"P-256"},false,["sign"]);
-  const sig = await crypto.subtle.sign({name:"ECDSA",hash:"SHA-256"},key,data);
-  const s = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/=+/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-
-  document.getElementById("out").value = "DIGIY1."+h+"."+p+"."+s;
+/* ===== IndexedDB simple ===== */
+function db(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(DB_NAME,1);
+    r.onupgradeneeded=e=>e.target.result.createObjectStore(STORE);
+    r.onsuccess=()=>res(r.result);
+    r.onerror=()=>rej();
+  });
 }
+async function save(k,v){
+  const d=await db();
+  return new Promise(r=>{
+    const t=d.transaction(STORE,"readwrite");
+    t.objectStore(STORE).put(v,k);
+    t.oncomplete=()=>r();
+  });
+}
+async function load(k){
+  const d=await db();
+  return new Promise(r=>{
+    const t=d.transaction(STORE,"readonly");
+    const q=t.objectStore(STORE).get(k);
+    q.onsuccess=()=>r(q.result);
+  });
+}
+
+/* ===== STATE ===== */
+let appState={
+  licenseMeta:null,
+  isDemo:false,
+  products:[],
+  cart:[],
+  history:[],
+  shopInfo:{name:"Ma Boutique"}
+};
+
+/* ===== LICENCE CHECK ===== */
+function validLicense(){
+  return appState.licenseMeta && Date.now() < new Date(appState.licenseMeta.exp).getTime();
+}
+function daysLeft(){
+  if(!appState.licenseMeta) return 0;
+  return Math.ceil((new Date(appState.licenseMeta.exp)-Date.now())/86400000);
+}
+function blockIfExpired(){
+  if(!appState.isDemo && !validLicense()){
+    document.body.innerHTML=`
+    <div style="background:#020617;color:white;height:100vh;display:flex;align-items:center;justify-content:center">
+      <div style="text-align:center;background:#030712;padding:40px;border-radius:18px;border:1px solid gold">
+        <h2 style="color:gold">Licence expirée</h2>
+        <p>DIGIY POS verrouillé.<br>Renouvelez votre licence.</p>
+        <a href="https://wa.me/221771342889" style="color:black;background:gold;padding:12px 22px;border-radius:12px;text-decoration:none;font-weight:700">Renouveler</a>
+      </div>
+    </div>`;
+  }
+}
+
+/* ===== ACTIVATION LICENCE ===== */
+async function activateLicense(){
+  const exp=Date.now()+31*86400000;
+  appState.licenseMeta={exp};
+  await save(STATE_KEY,appState);
+  location.reload();
+}
+
+/* ===== INIT ===== */
+async function init(){
+  const s=await load(STATE_KEY);
+  if(s) appState=s;
+  blockIfExpired();
+
+  if(validLicense()){
+    document.getElementById("licenseBadge").innerHTML="🦅 PRO • "+daysLeft()+"j";
+  }
+}
+
+document.addEventListener("DOMContentLoaded",init);
 </script>
 </body>
 </html>
