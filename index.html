@@ -121,6 +121,14 @@
 
 <div id="adminPage" class="page">
     <div class="main-container" style="display: block; max-width: 600px; margin: auto;">
+        
+        <div class="form-card" style="border: 1px solid var(--gold);">
+            <h3>👤 INFOS PROPRIÉTAIRE (SYNC)</h3>
+            <input type="text" id="ownerName" placeholder="Nom complet">
+            <input type="text" id="ownerPhone" placeholder="Numéro WhatsApp (ex: 77...)">
+            <button class="gold-btn" onclick="saveOwnerInfo()">ENREGISTRER MES INFOS</button>
+        </div>
+
         <div class="form-card">
             <h3>📦 AJOUTER UN PRODUIT</h3>
             <input type="text" id="addName" placeholder="Nom de l'article">
@@ -153,27 +161,29 @@
 <script>
 const TRIAL_LIMIT = 15;
 
-// LISTING NOBLE PAR DÉFAUT
 const defaultItems = [
     {id: 101, name: "Chemise Slim Fit", price: 15000, stock: 20},
     {id: 102, name: "Jean Denim Noir", price: 18500, stock: 15},
     {id: 103, name: "Montre Quartz Elite", price: 45000, stock: 5},
-    {id: 104, name: "Chaussures Cuir", price: 35000, stock: 8},
-    {id: 105, name: "Ceinture Marron", price: 7500, stock: 25},
-    {id: 106, name: "Parfum Royal 100ml", price: 28000, stock: 10},
-    {id: 107, name: "T-Shirt Premium", price: 12000, stock: 30},
-    {id: 108, name: "Sac à main Luxe", price: 55000, stock: 4}
+    {id: 104, name: "Chaussures Cuir", price: 35000, stock: 8}
 ];
 
 let db = {
     pro: localStorage.getItem('el_pro') === 'true',
     start: localStorage.getItem('el_start') || Date.now(),
     name: localStorage.getItem('el_name') || "MA BOUTIQUE NOBLE",
+    owner: localStorage.getItem('el_owner') || "",
+    phone: localStorage.getItem('el_phone') || "",
     storeId: localStorage.getItem('el_storeId') || "BOUTIQUE" + Math.random().toString(36).substr(2, 6).toUpperCase(),
     items: JSON.parse(localStorage.getItem('el_items')) || defaultItems,
     sales: JSON.parse(localStorage.getItem('el_sales')) || [],
     cart: []
 };
+
+// Init inputs admin
+document.getElementById('ownerName').value = db.owner;
+document.getElementById('ownerPhone').value = db.phone;
+
 if(!localStorage.getItem('el_start')) localStorage.setItem('el_start', db.start);
 if(!localStorage.getItem('el_storeId')) localStorage.setItem('el_storeId', db.storeId);
 
@@ -196,7 +206,6 @@ function render() {
         '<span style="color:var(--gold); font-size:10px;">PRO ACTIVÉ ∞</span>' : 
         `<span style="background:var(--gold); color:#000; padding:2px 8px; border-radius:10px; font-size:9px; font-weight:bold;">ESSAI: ${left}J</span>`;
 
-    // Grille Produits
     document.getElementById('productsGrid').innerHTML = db.items.map(p => `
         <div class="noble-card" onclick="addToCart(${p.id})">
             <i class="fas fa-tag"></i>
@@ -206,14 +215,12 @@ function render() {
         </div>
     `).join('');
 
-    // Panier
     document.getElementById('cartListing').innerHTML = db.cart.map(i => `
         <div class="cart-row"><span>${i.name} x${i.qty}</span><span>${(i.price*i.qty).toLocaleString()} F</span></div>
     `).join('');
     const total = db.cart.reduce((s,i) => s + (i.price*i.qty), 0);
     document.getElementById('totalPrice').innerText = total.toLocaleString() + " F";
 
-    // Stats & Dettes
     const today = new Date().toLocaleDateString();
     const todaySales = db.sales.filter(s => new Date(s.id).toLocaleDateString() === today);
     document.getElementById('revDay').innerText = todaySales.reduce((s,x) => s+x.total, 0).toLocaleString() + " F";
@@ -226,11 +233,16 @@ function render() {
         </div>
     `).join('');
     
-    // Afficher dernière sync
     const lastSync = localStorage.getItem('digiy_last_sync');
-    if(lastSync) {
-        document.getElementById('lastSyncDisplay').innerText = new Date(lastSync).toLocaleString('fr-FR');
-    }
+    if(lastSync) document.getElementById('lastSyncDisplay').innerText = new Date(lastSync).toLocaleString('fr-FR');
+}
+
+function saveOwnerInfo() {
+    db.owner = document.getElementById('ownerName').value;
+    db.phone = document.getElementById('ownerPhone').value;
+    localStorage.setItem('el_owner', db.owner);
+    localStorage.setItem('el_phone', db.phone);
+    alert("Coordonnées enregistrées ! Elles seront incluses dans la prochaine sync.");
 }
 
 function addToCart(id) {
@@ -266,10 +278,7 @@ function addNew() {
     if(n && p) {
         db.items.push({id: Date.now(), name: n, price: p, stock: s});
         save(); render();
-        alert("Produit ajouté au catalogue !");
-        document.getElementById('addName').value = "";
-        document.getElementById('addPrice').value = "";
-        document.getElementById('addStock').value = "";
+        alert("Produit ajouté !");
     }
 }
 
@@ -277,7 +286,7 @@ function saveStore() {
     db.name = document.getElementById('setStore').value;
     localStorage.setItem('el_name', db.name);
     render();
-    alert("Nom enregistré !");
+    alert("Enseigne mise à jour !");
 }
 
 function settle(id) {
@@ -300,188 +309,35 @@ function save() {
     localStorage.setItem('el_sales', JSON.stringify(db.sales));
 }
 
-// Fonction pour sync manuelle depuis l'admin
 function manualSync() {
-    if(typeof DIGIY_SYNC !== 'undefined') {
-        DIGIY_SYNC.syncDailySummary(true);
-    } else {
-        alert("Module de synchronisation non chargé");
-    }
+    if(typeof DIGIY_SYNC !== 'undefined') DIGIY_SYNC.syncDailySummary(true);
+    else alert("Module sync non chargé");
 }
 
 render();
 </script>
 
-<!-- ============================================ -->
-<!-- DIGIY SYNC MODULE - Version Batch Compressée -->
-<!-- ============================================ -->
 <script>
 /**
- * Module de synchronisation ultra-léger
- * Consommation: ~200 bytes/jour
- * Sync: 1x/jour à 23h, WiFi only
- * 99.9% économie vs temps réel
+ * Module DIGIY SYNC + Coordonnées Propriétaire
  */
 const DIGIY_SYNC = {
     config: {
         SUPABASE_URL: 'https://wesqmwjjtsefyjnluosj.supabase.co',
         SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indlc3Ftd2pqdHNlZnlqbmx1b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxNzg4ODIsImV4cCI6MjA4MDc1NDg4Mn0.dZfYOc2iL2_wRYL3zExZFsFSBK6AbMeOid2LrIjcTdA',
-        SYNC_HOUR: 23,
-        WIFI_ONLY: true,
-        AUTO_SYNC: true,
-        SHOW_BUTTON: true
-    },
-
-    state: {
-        lastSync: localStorage.getItem('digiy_last_sync') || null,
-        syncInProgress: false
-    },
-
-    init() {
-        console.log('🦅 DIGIY Sync Module initialisé - Version Batch');
-        
-        if (this.config.AUTO_SYNC) {
-            this.scheduleAutoSync();
-        }
-
-        if (this.config.SHOW_BUTTON) {
-            this.addSyncButton();
-        }
-    },
-
-    scheduleAutoSync() {
-        setInterval(() => {
-            const now = new Date();
-            const hour = now.getHours();
-            const today = now.toDateString();
-            
-            if (hour === this.config.SYNC_HOUR && this.state.lastSync !== today) {
-                this.syncDailySummary();
-            }
-        }, 60 * 60 * 1000);
-    },
-
-    addSyncButton() {
-        const syncBtn = document.createElement('button');
-        syncBtn.id = 'syncDashboardBtn';
-        syncBtn.innerHTML = '<i class="fas fa-cloud-upload-alt"></i> Sync Dashboard';
-        syncBtn.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            background: linear-gradient(135deg, #0ea5e9, #0284c7);
-            border: none;
-            border-radius: 10px;
-            color: white;
-            font-weight: 800;
-            cursor: pointer;
-            box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
-            z-index: 9999;
-            font-size: 11px;
-            transition: 0.3s;
-        `;
-        
-        syncBtn.onmouseover = () => syncBtn.style.transform = 'translateY(-2px)';
-        syncBtn.onmouseout = () => syncBtn.style.transform = 'translateY(0)';
-        syncBtn.onclick = () => this.syncDailySummary(true);
-        document.body.appendChild(syncBtn);
-    },
-
-    isOnWiFi() {
-        if (!this.config.WIFI_ONLY) return true;
-        
-        if (navigator.connection) {
-            const type = navigator.connection.type || navigator.connection.effectiveType;
-            return type === 'wifi' || type === '4g';
-        }
-        
-        return true;
-    },
-
-    async calculateDailySummary() {
-        const sales = JSON.parse(localStorage.getItem('el_sales') || '[]');
-        const today = new Date().toISOString().split('T')[0];
-        
-        const todaySales = sales.filter(sale => {
-            const saleDate = new Date(sale.id || sale.timestamp).toISOString().split('T')[0];
-            return saleDate === today;
-        });
-
-        const summary = {
-            date: today,
-            total_ca: 0,
-            nb_ventes: todaySales.length,
-            cash: 0,
-            wave: 0,
-            om: 0,
-            cb: 0,
-            credit: 0,
-            nb_produits: 0
-        };
-
-        todaySales.forEach(sale => {
-            const amount = sale.total || 0;
-            summary.total_ca += amount;
-            
-            const method = (sale.method || '').toLowerCase();
-            if (method === 'cash') summary.cash += amount;
-            else if (method === 'wave') summary.wave += amount;
-            else if (method === 'om') summary.om += amount;
-            else if (method === 'cb') summary.cb += amount;
-            else if (method === 'credit') summary.credit += amount;
-            
-            if (sale.items && Array.isArray(sale.items)) {
-                summary.nb_produits += sale.items.reduce((sum, item) => sum + (item.qty || 1), 0);
-            }
-        });
-
-        return summary;
-    },
-
-    compress(data) {
-        const compact = {
-            d: data.date,
-            ca: data.total_ca,
-            nv: data.nb_ventes,
-            c: data.cash,
-            w: data.wave,
-            o: data.om,
-            cb: data.cb,
-            cr: data.credit,
-            np: data.nb_produits
-        };
-        
-        return JSON.stringify(compact);
     },
 
     async syncDailySummary(manual = false) {
-        if (this.state.syncInProgress) {
-            console.log('⏳ Sync déjà en cours...');
-            return;
-        }
-
-        if (!this.isOnWiFi() && !manual) {
-            console.log('📱 Pas sur WiFi - sync annulée');
-            return;
-        }
-
-        this.state.syncInProgress = true;
-        const statusMsg = manual ? 'Synchronisation manuelle...' : 'Synchronisation quotidienne...';
-        console.log('🔄', statusMsg);
-
         try {
-            const summary = await this.calculateDailySummary();
+            const sales = JSON.parse(localStorage.getItem('el_sales') || '[]');
+            const today = new Date().toISOString().split('T')[0];
+            const todaySales = sales.filter(s => new Date(s.timestamp || s.id).toISOString().split('T')[0] === today);
             
-            const storeId = localStorage.getItem('el_storeId') || 'UNKNOWN';
-            const storeName = localStorage.getItem('el_name') || 'Boutique';
-
-            const compressed = this.compress(summary);
-            const originalSize = JSON.stringify(summary).length;
-            const compressedSize = compressed.length;
-            const savings = ((1 - compressedSize / originalSize) * 100).toFixed(1);
+            const total_ca = todaySales.reduce((sum, s) => sum + s.total, 0);
             
-            console.log(`📦 Compression: ${originalSize}B → ${compressedSize}B (${savings}% économie)`);
+            // On récupère les coordonnées pour la base de données
+            const owner = localStorage.getItem('el_owner') || "Non renseigné";
+            const phone = localStorage.getItem('el_phone') || "Non renseigné";
 
             const response = await fetch(`${this.config.SUPABASE_URL}/rest/v1/pos_daily_summaries`, {
                 method: 'POST',
@@ -489,59 +345,33 @@ const DIGIY_SYNC = {
                     'Content-Type': 'application/json',
                     'apikey': this.config.SUPABASE_KEY,
                     'Authorization': `Bearer ${this.config.SUPABASE_KEY}`,
-                    'Prefer': 'return=minimal'
                 },
                 body: JSON.stringify({
-                    store_id: storeId,
-                    store_name: storeName,
-                    date: summary.date,
-                    data_compressed: compressed,
-                    total_ca: summary.total_ca,
-                    nb_ventes: summary.nb_ventes,
-                    data_size_bytes: compressedSize
+                    store_id: localStorage.getItem('el_storeId'),
+                    store_name: localStorage.getItem('el_name'),
+                    owner_name: owner,      // Enregistre le nom
+                    owner_phone: phone,     // Enregistre le tel
+                    date: today,
+                    total_ca: total_ca,
+                    nb_ventes: todaySales.length
                 })
             });
 
             if (response.ok) {
-                const today = new Date().toISOString();
-                this.state.lastSync = today;
-                localStorage.setItem('digiy_last_sync', today);
-                
-                console.log('✅ Sync réussie !', {
-                    date: summary.date,
-                    ca: summary.total_ca,
-                    ventes: summary.nb_ventes,
-                    taille: `${compressedSize}B`
-                });
-
-                if (manual) {
-                    alert(`✅ Synchronisation réussie !\n\n📊 CA: ${summary.total_ca.toLocaleString()} F\n🛒 Ventes: ${summary.nb_ventes}\n📡 Data: ${compressedSize} bytes\n💾 Économie: ${savings}%`);
-                    render(); // Rafraîchir l'affichage
-                }
-            } else {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                localStorage.setItem('digiy_last_sync', new Date().toISOString());
+                if(manual) alert("✅ Sync réussie ! Coordonnées et ventes transmises.");
+                render();
             }
+        } catch (e) { console.error(e); }
+    },
 
-        } catch (error) {
-            console.error('❌ Erreur sync:', error);
-            if (manual) {
-                alert('❌ Erreur de synchronisation.\nVérifiez votre connexion internet.\n\n' + error.message);
-            }
-        } finally {
-            this.state.syncInProgress = false;
-        }
+    init() {
+        setInterval(() => {
+            if(new Date().getHours() === 23) this.syncDailySummary();
+        }, 1000 * 60 * 60);
     }
 };
-
-// Auto-init
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => DIGIY_SYNC.init());
-} else {
-    DIGIY_SYNC.init();
-}
-
-window.DIGIY_SYNC = DIGIY_SYNC;
-console.log('🦅 DIGIY POS ELITE + Sync Batch - Ready ∞');
+DIGIY_SYNC.init();
 </script>
 
 </body>
