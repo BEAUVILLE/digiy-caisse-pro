@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>DIGIY POS — Générateur de Licences 👑</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<style>
+body{
+  margin:0;
+  background:#020617;
+  font-family:system-ui;
+  color:#f9fafb;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:100vh;
+}
+.box{
+  width:520px;
+  background:#030712;
+  border:1px solid rgba(250,204,21,.25);
+  border-radius:18px;
+  padding:32px;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);
+}
+h1{
+  margin:0 0 18px 0;
+  font-size:24px;
+  background:linear-gradient(135deg,#facc15,#f97316);
+  -webkit-background-clip:text;
+  -webkit-text-fill-color:transparent;
+}
+label{font-size:13px;color:#cbd5f5}
+input,select{
+  width:100%;
+  margin-top:6px;
+  margin-bottom:16px;
+  padding:12px;
+  border-radius:10px;
+  border:1px solid rgba(148,163,184,.25);
+  background:#020617;
+  color:#f9fafb;
+}
+button{
+  width:100%;
+  padding:14px;
+  border-radius:12px;
+  border:none;
+  background:linear-gradient(135deg,#facc15,#f97316);
+  font-weight:700;
+  cursor:pointer;
+}
+textarea{
+  width:100%;
+  margin-top:16px;
+  padding:12px;
+  background:#020617;
+  border:1px solid rgba(148,163,184,.25);
+  border-radius:10px;
+  color:#22c55e;
+  height:120px;
+}
+</style>
+</head>
+
+<body>
+<div class="box">
+<h1>DIGIY POS 👑 Générateur Officiel</h1>
+
+<label>Durée licence</label>
+<select id="duration">
+  <option value="30">1 mois</option>
+  <option value="180">6 mois</option>
+  <option value="365" selected>1 an</option>
+  <option value="730">2 ans</option>
+</select>
+
+<label>Device ID (optionnel)</label>
+<input id="device" placeholder="laisser vide = licence universelle">
+
+<button onclick="generate()">Générer Licence</button>
+
+<textarea id="out" placeholder="La licence DIGIY apparaîtra ici..."></textarea>
+</div>
+
+<script>
+const PRIVATE_JWK = JSON.parse(localStorage.getItem("DIGIY_PRIVATE"));
+
+async function generate(){
+  if(!PRIVATE_JWK){
+    alert("Charge d'abord la clé privée DIGIY !");
+    return;
+  }
+
+  const device = document.getElementById("device").value.trim();
+  const days = parseInt(document.getElementById("duration").value);
+  const exp = Date.now() + days*24*60*60*1000;
+
+  const payload = {
+    iss:"DIGIY",
+    app:"POS_PRO",
+    plan:"PRO",
+    exp,
+    device: device || undefined,
+    iat:Date.now()
+  };
+
+  const header = {alg:"ES256",typ:"DIGIY-LIC"};
+
+  const enc = new TextEncoder();
+  const h = btoa(JSON.stringify(header)).replace(/=+/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+  const p = btoa(JSON.stringify(payload)).replace(/=+/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+  const data = enc.encode(h+"."+p);
+
+  const key = await crypto.subtle.importKey("jwk",PRIVATE_JWK,{name:"ECDSA",namedCurve:"P-256"},false,["sign"]);
+  const sig = await crypto.subtle.sign({name:"ECDSA",hash:"SHA-256"},key,data);
+  const s = btoa(String.fromCharCode(...new Uint8Array(sig))).replace(/=+/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+
+  document.getElementById("out").value = "DIGIY1."+h+"."+p+"."+s;
+}
+</script>
+</body>
+</html>
