@@ -1677,714 +1677,788 @@
     </div>
   </div>
 
-  <!-- ===== SCRIPTS ===== -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script>
-    /* ===== SUPABASE INIT ===== */
-    const SUPABASE_URL = "https://wesqmwjjtsefyjnluosj.supabase.co";
-    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indlc3Ftd2pqdHNlZnlqbmx1b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxNzg4ODIsImV4cCI6MjA4MDc1NDg4Mn0.dZfYOc2iL2_wRYL3zExZFsFSBK6AbMeOid2LrIjcTdA";
-    
-    // Initialisation Supabase
-    let supabaseClient = null;
-    
-    function getSupabase() {
-      if (!supabaseClient) {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-      }
-      return supabaseClient;
-    }
+ <script>
+/* ======================================================
+   DIGIY POS PRO ♾️ — OFFLINE (INDEXEDDB) + DEMO 15J + LICENCE 31J
+   ✅ Démo démarre aussi via QR "cliquable" (URL)
+   ✅ Zéro Supabase / Zéro Cloud requis
+====================================================== */
 
-    /* ===== STATE ===== */
-    let appState = {
-      isDemo: false,
-      licenseCode: null,
-      shopInfo: {
-        name: 'Ma Boutique',
-        address: '',
-        phone: ''
-      },
-      products: [],
-      cart: [],
-      history: [],
-      demoStartDate: null,
-      demoSalesCount: 0,
-      currentEditProductId: null,
-      currentCategory: 'all'
+/* ---------------------------
+   Réglages
+--------------------------- */
+const DEMO_DAYS = 15;
+const LICENSE_DAYS = 31;
+
+/* ---------------------------
+   IndexedDB (1 store KV)
+--------------------------- */
+const DB_NAME = "digiy_pos_db";
+const STORE = "kv";
+const KEY_STATE = "state";
+
+function openDB(){
+  return new Promise((resolve, reject)=>{
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbGet(key){
+  const db = await openDB();
+  return new Promise((resolve)=>{
+    const tx = db.transaction(STORE, "readonly");
+    const q = tx.objectStore(STORE).get(key);
+    q.onsuccess = () => resolve(q.result);
+    q.onerror = () => resolve(null);
+  });
+}
+
+async function idbSet(key, value){
+  const db = await openDB();
+  return new Promise((resolve)=>{
+    const tx = db.transaction(STORE, "readwrite");
+    tx.objectStore(STORE).put(value, key);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => resolve(false);
+  });
+}
+
+/* ---------------------------
+   Helpers UI
+--------------------------- */
+function showNotification(type, title, message){
+  // Ton système existe déjà : je le garde compatible
+  try{
+    const icons = {
+      success: 'fa-check-circle',
+      error: 'fa-exclamation-circle',
+      warning: 'fa-exclamation-triangle'
     };
+    const notif = document.createElement('div');
+    notif.className = `notification ${type}`;
+    notif.innerHTML = `
+      <i class="fas ${icons[type] || icons.warning}"></i>
+      <div class="notification-content">
+        <div class="notification-title">${title}</div>
+        <div class="notification-message">${message}</div>
+      </div>
+    `;
+    document.body.appendChild(notif);
+    setTimeout(()=>{ notif.remove(); }, 2800);
+  }catch(e){
+    alert(`${title}\n${message}`);
+  }
+}
 
-    /* ===== INIT ===== */
-    function init() {
-      loadState();
-      
-      // Check if licensed or demo
-      if (!appState.licenseCode && !appState.isDemo) {
-        document.getElementById('activationScreen').classList.add('active');
-      } else {
-        document.getElementById('mainApp').style.display = 'block';
-        
-        if (appState.isDemo) {
-          showDemoWarning();
-          updateDemoCounters();
-        } else {
-          document.getElementById('licenseBadge').innerHTML = '<i class="fas fa-check-circle"></i> ACTIVÉ';
-          document.getElementById('licenseBadge').classList.remove('demo');
-        }
-        
-        document.getElementById('shopName').textContent = appState.shopInfo.name;
-        
-        if (appState.products.length === 0) {
-          loadDefaultProducts();
-        }
-        
-        renderProducts();
-        renderCart();
-        renderHistory();
-        loadAdminData();
-      }
+function fmtFCFA(n){
+  try{ return (n||0).toLocaleString() + " FCFA"; }catch{ return n+" FCFA"; }
+}
+
+/* ---------------------------
+   State (tout offline)
+--------------------------- */
+let appState = {
+  // Mode
+  license: null,        // { exp:number, device:string|null }
+  demoStart: null,      // ISO string
+  demoDays: DEMO_DAYS,
+
+  // Boutique + data
+  shopInfo: { name:'Ma Boutique', address:'', phone:'' },
+  products: [],
+  cart: [],
+  history: [],
+  currentEditProductId: null,
+  currentCategory: 'all',
+
+  // Device lock
+  deviceId: null
+};
+
+async function loadState(){
+  const saved = await idbGet(KEY_STATE);
+  if(saved && typeof saved === "object"){
+    appState = { ...appState, ...saved };
+  }
+}
+
+async function saveState(){
+  await idbSet(KEY_STATE, appState);
+}
+
+/* ---------------------------
+   Device ID (anti-partage)
+--------------------------- */
+function genId(){
+  const a = crypto.getRandomValues(new Uint8Array(16));
+  return [...a].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function ensureDeviceId(){
+  if(!appState.deviceId){
+    appState.deviceId = "DEV-" + genId();
+    await saveState();
+  }
+  return appState.deviceId;
+}
+
+/* ---------------------------
+   Démo
+--------------------------- */
+function demoIsValid(){
+  if(!appState.demoStart) return false;
+  const start = new Date(appState.demoStart).getTime();
+  const ms = appState.demoDays * 86400000;
+  return Date.now() < (start + ms);
+}
+function demoDaysLeft(){
+  if(!appState.demoStart) return 0;
+  const start = new Date(appState.demoStart).getTime();
+  const end = start + appState.demoDays * 86400000;
+  const diff = end - Date.now();
+  return Math.max(0, Math.ceil(diff / 86400000));
+}
+async function startDemoMode(){
+  if(appState.license) {
+    showNotification("warning","Déjà PRO","Licence active détectée.");
+    return;
+  }
+  if(!appState.demoStart){
+    appState.demoStart = new Date().toISOString();
+    await saveState();
+  }
+  showNotification("success","Démo activée",`${DEMO_DAYS} jours offerts.`);
+  bootApp();
+  updateDemoUI();
+}
+
+/* ---------------------------
+   Démo via QR "cliquable" (URL)
+   -> QR ouvre : https://tonsite/index.html?demo=15
+   -> ou ?demo=15&ref=CHEZ-XX
+--------------------------- */
+async function autoStartDemoFromURL(){
+  const u = new URL(location.href);
+  const demo = u.searchParams.get("demo");
+  if(String(demo) === String(DEMO_DAYS) && !appState.demoStart && !appState.license){
+    appState.demoStart = new Date().toISOString();
+    await saveState();
+    showNotification("success","Démo activée","Démarrée via QR / lien.");
+    // Nettoie l’URL (propre)
+    u.searchParams.delete("demo");
+    u.searchParams.delete("ref");
+    history.replaceState({}, "", u.toString());
+  }
+}
+
+/* ---------------------------
+   Licence PRO (31 jours)
+   Format recommandé : DIGIY1.<base64url(payload)>
+   payload = { exp:number(ms), device?:string|null, plan:"PRO" }
+   ✅ Si device est présent, on vérifie que ça correspond au deviceId local.
+--------------------------- */
+function base64urlDecodeToJson(b64u){
+  const b64 = b64u.replace(/-/g,'+').replace(/_/g,'/');
+  const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+  const str = atob(b64 + pad);
+  return JSON.parse(str);
+}
+
+function parseLicense(input){
+  const s = (input||"").trim();
+  if(!s.startsWith("DIGIY1.")) return null;
+  const parts = s.split(".");
+  if(parts.length < 2) return null;
+  try{
+    const payload = base64urlDecodeToJson(parts[1]);
+    if(!payload || !payload.exp) return null;
+    return payload;
+  }catch(e){
+    return null;
+  }
+}
+
+function licenseIsValid(){
+  if(!appState.license?.exp) return false;
+  return Date.now() < Number(appState.license.exp);
+}
+
+function licenseDaysLeft(){
+  if(!appState.license?.exp) return 0;
+  const diff = Number(appState.license.exp) - Date.now();
+  return Math.max(0, Math.ceil(diff / 86400000));
+}
+
+/* ---------------------------
+   Activation licence (via input)
+--------------------------- */
+async function activateLicense(){
+  const code = document.getElementById('licenseCode').value.trim();
+  if(!code){
+    showNotification('error','Code requis','Colle ta licence DIGIY1.');
+    return;
+  }
+
+  await ensureDeviceId();
+
+  const payload = parseLicense(code);
+  if(!payload){
+    showNotification('error','Licence invalide','Format DIGIY1 non reconnu.');
+    return;
+  }
+
+  // Vérifie expiration
+  if(Date.now() >= Number(payload.exp)){
+    showNotification('error','Expirée','Cette licence est déjà périmée.');
+    return;
+  }
+
+  // Vérifie device lock si présent
+  const localDev = appState.deviceId;
+  if(payload.device && payload.device !== localDev){
+    showNotification('error','Licence bloquée','Cette licence est liée à un autre appareil.');
+    return;
+  }
+
+  // ✅ OK -> active
+  appState.license = {
+    exp: Number(payload.exp),
+    device: payload.device || null,
+    plan: payload.plan || "PRO"
+  };
+
+  // Stop démo si elle existait
+  appState.demoStart = null;
+
+  await saveState();
+
+  showNotification('success','Activé','Licence PRO active ✅');
+  document.getElementById('activationScreen').classList.remove('active');
+  bootApp();
+}
+
+/* ---------------------------
+   Blocage si ni démo ni licence
+--------------------------- */
+function hardBlock(){
+  document.body.innerHTML = `
+  <div style="background:#020617;color:white;height:100vh;display:flex;align-items:center;justify-content:center">
+    <div style="text-align:center;background:#030712;padding:40px;border-radius:18px;border:1px solid gold;max-width:520px">
+      <h2 style="color:gold;margin-top:0">DIGIY POS verrouillé</h2>
+      <p>Démo terminée et aucune licence active.<br>Active ta licence PRO pour continuer.</p>
+      <a href="https://wa.me/221771342889?text=Activation%20DIGIY%20POS%20PRO"
+         style="background:gold;color:black;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:800;display:inline-block;margin-top:10px">
+        Activer via WhatsApp
+      </a>
+    </div>
+  </div>`;
+}
+
+/* ---------------------------
+   UI : badge + écran demo warning
+--------------------------- */
+function updateBadge(){
+  const badge = document.getElementById('licenseBadge');
+  if(!badge) return;
+
+  if(licenseIsValid()){
+    badge.classList.remove('demo');
+    badge.innerHTML = `<i class="fas fa-check-circle"></i> PRO • ${licenseDaysLeft()}j`;
+  } else if(demoIsValid()){
+    badge.classList.add('demo');
+    badge.innerHTML = `<i class="fas fa-clock"></i> DÉMO • ${demoDaysLeft()}j`;
+  } else {
+    badge.classList.add('demo');
+    badge.innerHTML = `<i class="fas fa-lock"></i> INACTIF`;
+  }
+}
+
+function updateDemoUI(){
+  const warn = document.getElementById('demoWarning');
+  if(!warn) return;
+
+  if(demoIsValid() && !licenseIsValid()){
+    warn.style.display = 'block';
+    const d = document.getElementById('daysLeft');
+    if(d) d.textContent = demoDaysLeft();
+
+    // Tu as aussi "salesLeft" dans ton UI : on met ∞ (pas de limite ventes)
+    const s = document.getElementById('salesLeft');
+    if(s) s.textContent = "∞";
+  } else {
+    warn.style.display = 'none';
+  }
+}
+
+/* ---------------------------
+   Boot app (ta logique UI existante)
+   -> on garde ton fonctionnement, mais storage = IndexedDB
+--------------------------- */
+function bootApp(){
+  // Si besoin d’afficher l’app
+  document.getElementById('mainApp').style.display = 'block';
+  document.getElementById('activationScreen').classList.remove('active');
+
+  // Shop name
+  document.getElementById('shopName').textContent = appState.shopInfo?.name || "Ma Boutique";
+
+  // Catégories / produits / panier / historique
+  if(!appState.products || appState.products.length===0){
+    loadDefaultProducts();
+  }
+
+  renderProducts();
+  renderCart();
+  renderHistory();
+  loadAdminData();
+
+  updateBadge();
+  updateDemoUI();
+}
+
+/* ---------------------------
+   Ton contenu POS (produits/cart/history/admin)
+   -> je reprends tes fonctions existantes (adaptées à saveState IndexedDB)
+--------------------------- */
+
+function loadDefaultProducts(){
+  appState.products = [
+    { id: 1, name: 'Coca Cola', category: 'Boissons', price: 500, stock: 50, icon: '🥤' },
+    { id: 2, name: 'Fanta', category: 'Boissons', price: 500, stock: 45, icon: '🥤' },
+    { id: 3, name: 'Eau Minérale', category: 'Boissons', price: 300, stock: 100, icon: '💧' },
+    { id: 4, name: 'Chips', category: 'Snacks', price: 200, stock: 60, icon: '🍟' },
+    { id: 5, name: 'Biscuits', category: 'Snacks', price: 150, stock: 80, icon: '🍪' },
+    { id: 6, name: 'Pain', category: 'Alimentation', price: 250, stock: 30, icon: '🍞' },
+    { id: 7, name: 'Lait', category: 'Alimentation', price: 800, stock: 25, icon: '🥛' },
+    { id: 8, name: 'Savon', category: 'Hygiène', price: 400, stock: 40, icon: '🧼' }
+  ];
+  saveState();
+}
+
+function renderCategories(){
+  const categories = ['all', ...new Set(appState.products.map(p => p.category))];
+  const tabs = document.getElementById('categoryTabs');
+  tabs.innerHTML = categories.map(cat => `
+    <div class="tab ${appState.currentCategory === cat ? 'active' : ''}"
+         onclick="filterCategory('${cat}')">
+      ${cat === 'all' ? 'Tous' : cat}
+    </div>
+  `).join('');
+}
+
+function renderProducts(){
+  const grid = document.getElementById('productsGrid');
+  const search = (document.getElementById('searchInput')?.value || "").toLowerCase();
+
+  let filtered = appState.products.filter(p => {
+    const matchCategory = appState.currentCategory === 'all' || p.category === appState.currentCategory;
+    const matchSearch = p.name.toLowerCase().includes(search);
+    return matchCategory && matchSearch;
+  });
+
+  renderCategories();
+
+  if(filtered.length === 0){
+    grid.innerHTML = `
+      <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--muted);">
+        <i class="fas fa-box-open" style="font-size: 48px; opacity: 0.3; margin-bottom: 12px;"></i>
+        <p>Aucun produit trouvé</p>
+      </div>
+    `;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(p => `
+    <div class="product-card" onclick="addToCart(${p.id})">
+      <div class="product-icon">${p.icon || '📦'}</div>
+      <div class="product-name">${p.name}</div>
+      <div class="product-price">${(p.price||0).toLocaleString()} FCFA</div>
+      <div class="product-stock ${p.stock < 10 ? 'stock-low' : ''}">Stock: ${p.stock}</div>
+    </div>
+  `).join('');
+}
+
+function filterCategory(category){
+  appState.currentCategory = category;
+  renderProducts();
+  saveState();
+}
+function searchProducts(){ renderProducts(); }
+
+function addToCart(productId){
+  const product = appState.products.find(p => p.id === productId);
+  if(!product || product.stock === 0){
+    showNotification('error','Stock insuffisant','Produit indisponible');
+    return;
+  }
+  const item = appState.cart.find(i => i.id === productId);
+  if(item){
+    if(item.quantity >= product.stock){
+      showNotification('warning','Stock limité','Quantité max atteinte');
+      return;
     }
+    item.quantity++;
+  }else{
+    appState.cart.push({ id: product.id, name: product.name, price: product.price, quantity: 1 });
+  }
+  renderCart();
+  saveState();
+}
 
-    /* ===== LICENSE ACTIVATION ===== */
-    async function activateLicense() {
-      const code = document.getElementById('licenseCode').value.trim().toUpperCase();
-      
-      if (!code) {
-        showNotification('error', 'Code requis', 'Veuillez entrer un code de licence');
-        return;
-      }
+function removeFromCart(productId){
+  appState.cart = appState.cart.filter(i => i.id !== productId);
+  renderCart();
+  saveState();
+}
 
-      // Validate format DIGIY-XXXX-XXXX
-      const format = /^DIGIY-[A-Z0-9]{4}-[A-Z0-9]{4}$/;
-      if (!format.test(code)) {
-        showNotification('error', 'Format invalide', 'Le code doit être au format DIGIY-XXXX-XXXX');
-        return;
-      }
+function updateQuantity(productId, delta){
+  const item = appState.cart.find(i => i.id === productId);
+  const product = appState.products.find(p => p.id === productId);
+  if(!item || !product) return;
 
-      showNotification('warning', 'Vérification...', 'Validation du code en cours');
+  item.quantity += delta;
+  if(item.quantity <= 0){
+    removeFromCart(productId);
+    return;
+  }
+  if(item.quantity > product.stock){
+    item.quantity = product.stock;
+    showNotification('warning','Stock limité','Quantité max atteinte');
+  }
+  renderCart();
+  saveState();
+}
 
-      try {
-        // Check license in Supabase
-        const supabase = getSupabase();
-        const { data, error } = await supabase
-          .from('licenses')
-          .select('*')
-          .eq('code', code)
-          .eq('status', 'active')
-          .single();
+function clearCart(){
+  if(appState.cart.length === 0) return;
+  if(confirm('Voulez-vous vraiment vider le panier ?')){
+    appState.cart = [];
+    renderCart();
+    saveState();
+    showNotification('success','Panier vidé','OK');
+  }
+}
 
-        if (error || !data) {
-          showNotification('error', 'Code invalide', 'Ce code de licence n\'existe pas ou a expiré');
-          return;
-        }
+function renderCart(){
+  const container = document.getElementById('cartItems');
+  const btn = document.getElementById('checkoutBtn');
 
-        // Activate
-        appState.licenseCode = code;
-        appState.isDemo = false;
-        saveState();
+  if(appState.cart.length === 0){
+    container.innerHTML = `
+      <div class="cart-empty">
+        <i class="fas fa-shopping-basket"></i>
+        <p>Votre panier est vide</p>
+      </div>
+    `;
+    btn.disabled = true;
+    updateCartSummary();
+    return;
+  }
 
-        showNotification('success', 'Activé !', 'Votre licence a été activée avec succès');
-        
-        setTimeout(() => {
-          document.getElementById('activationScreen').classList.remove('active');
-          document.getElementById('mainApp').style.display = 'block';
-          document.getElementById('shopName').textContent = appState.shopInfo.name;
-          document.getElementById('licenseBadge').innerHTML = '<i class="fas fa-check-circle"></i> ACTIVÉ';
-          document.getElementById('licenseBadge').classList.remove('demo');
-          
-          if (appState.products.length === 0) {
-            loadDefaultProducts();
-          }
-          renderProducts();
-          renderCart();
-          renderHistory();
-          loadAdminData();
-        }, 1500);
-
-      } catch (err) {
-        console.error('License error:', err);
-        showNotification('error', 'Erreur', 'Impossible de valider le code. Vérifiez votre connexion.');
-      }
-    }
-
-    /* ===== DEMO MODE ===== */
-    function startDemoMode() {
-      appState.isDemo = true;
-      appState.demoStartDate = new Date().toISOString();
-      appState.demoSalesCount = 0;
-      saveState();
-
-      showNotification('success', 'Mode Démo', 'Vous avez 14 jours et 30 ventes pour essayer');
-
-      setTimeout(() => {
-        document.getElementById('activationScreen').classList.remove('active');
-        document.getElementById('mainApp').style.display = 'block';
-        showDemoWarning();
-        updateDemoCounters();
-        document.getElementById('shopName').textContent = appState.shopInfo.name;
-        
-        if (appState.products.length === 0) {
-          loadDefaultProducts();
-        }
-        renderProducts();
-        renderCart();
-        renderHistory();
-        loadAdminData();
-      }, 1000);
-    }
-
-    function showDemoWarning() {
-      document.getElementById('demoWarning').style.display = 'block';
-    }
-
-    function updateDemoCounters() {
-      if (!appState.isDemo) return;
-
-      const startDate = new Date(appState.demoStartDate);
-      const today = new Date();
-      const daysPassed = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
-      const daysLeft = Math.max(0, 14 - daysPassed);
-      const salesLeft = Math.max(0, 30 - appState.demoSalesCount);
-
-      document.getElementById('daysLeft').textContent = daysLeft;
-      document.getElementById('salesLeft').textContent = salesLeft;
-
-      // Check if demo expired
-      if (daysLeft === 0 || salesLeft === 0) {
-        showUpgradeModal();
-        disableCheckout();
-      }
-    }
-
-    function disableCheckout() {
-      const btn = document.getElementById('checkoutBtn');
-      btn.disabled = true;
-      btn.innerHTML = '<i class="fas fa-lock"></i> Démo Expirée - Passez à PRO';
-    }
-
-    /* ===== PRODUCTS ===== */
-    function loadDefaultProducts() {
-      appState.products = [
-        { id: 1, name: 'Coca Cola', category: 'Boissons', price: 500, stock: 50, icon: '🥤' },
-        { id: 2, name: 'Fanta', category: 'Boissons', price: 500, stock: 45, icon: '🥤' },
-        { id: 3, name: 'Eau Minérale', category: 'Boissons', price: 300, stock: 100, icon: '💧' },
-        { id: 4, name: 'Chips', category: 'Snacks', price: 200, stock: 60, icon: '🍟' },
-        { id: 5, name: 'Biscuits', category: 'Snacks', price: 150, stock: 80, icon: '🍪' },
-        { id: 6, name: 'Pain', category: 'Alimentation', price: 250, stock: 30, icon: '🍞' },
-        { id: 7, name: 'Lait', category: 'Alimentation', price: 800, stock: 25, icon: '🥛' },
-        { id: 8, name: 'Savon', category: 'Hygiène', price: 400, stock: 40, icon: '🧼' }
-      ];
-      saveState();
-    }
-
-    function renderProducts() {
-      const grid = document.getElementById('productsGrid');
-      const search = document.getElementById('searchInput').value.toLowerCase();
-      
-      let filtered = appState.products.filter(p => {
-        const matchCategory = appState.currentCategory === 'all' || p.category === appState.currentCategory;
-        const matchSearch = p.name.toLowerCase().includes(search);
-        return matchCategory && matchSearch;
-      });
-
-      if (filtered.length === 0) {
-        grid.innerHTML = `
-          <div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--muted);">
-            <i class="fas fa-box-open" style="font-size: 48px; opacity: 0.3; margin-bottom: 12px;"></i>
-            <p>Aucun produit trouvé</p>
-          </div>
-        `;
-        return;
-      }
-
-      grid.innerHTML = filtered.map(p => `
-        <div class="product-card" onclick="addToCart(${p.id})">
-          <div class="product-icon">${p.icon}</div>
-          <div class="product-name">${p.name}</div>
-          <div class="product-price">${p.price.toLocaleString()} FCFA</div>
-          <div class="product-stock ${p.stock < 10 ? 'stock-low' : ''}">
-            Stock: ${p.stock}
-          </div>
+  container.innerHTML = appState.cart.map(item => `
+    <div class="cart-item">
+      <div class="cart-item-header">
+        <div class="cart-item-name">${item.name}</div>
+        <button class="cart-item-remove" onclick="removeFromCart(${item.id})"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="cart-item-controls">
+        <div class="quantity-controls">
+          <button class="qty-btn" onclick="updateQuantity(${item.id}, -1)">-</button>
+          <span class="qty-value">${item.quantity}</span>
+          <button class="qty-btn" onclick="updateQuantity(${item.id}, 1)">+</button>
         </div>
-      `).join('');
+        <div class="cart-item-price">${((item.price||0) * item.quantity).toLocaleString()} FCFA</div>
+      </div>
+    </div>
+  `).join('');
 
-      // Render categories
-      renderCategories();
-    }
+  btn.disabled = false;
+  updateCartSummary();
+}
 
-    function renderCategories() {
-      const categories = ['all', ...new Set(appState.products.map(p => p.category))];
-      const tabs = document.getElementById('categoryTabs');
-      
-      tabs.innerHTML = categories.map(cat => `
-        <div class="tab ${appState.currentCategory === cat ? 'active' : ''}" 
-             onclick="filterCategory('${cat}')">
-          ${cat === 'all' ? 'Tous' : cat}
-        </div>
-      `).join('');
-    }
+function updateCartSummary(){
+  const totalItems = appState.cart.reduce((s,i)=>s+i.quantity,0);
+  const subtotal = appState.cart.reduce((s,i)=>s+(i.price*i.quantity),0);
+  document.getElementById('totalItems').textContent = totalItems;
+  document.getElementById('subtotal').textContent = fmtFCFA(subtotal);
+  document.getElementById('total').textContent = fmtFCFA(subtotal);
+}
 
-    function filterCategory(category) {
-      appState.currentCategory = category;
-      renderProducts();
-    }
+function checkout(){
+  if(appState.cart.length === 0) return;
 
-    function searchProducts() {
-      renderProducts();
-    }
+  // 🔒 Si ni licence ni démo valide -> lock
+  if(!licenseIsValid() && !demoIsValid()){
+    hardBlock();
+    return;
+  }
 
-    /* ===== CART ===== */
-    function addToCart(productId) {
-      const product = appState.products.find(p => p.id === productId);
-      if (!product || product.stock === 0) {
-        showNotification('error', 'Stock insuffisant', 'Ce produit n\'est plus disponible');
-        return;
+  // Update stock
+  appState.cart.forEach(ci=>{
+    const p = appState.products.find(x=>x.id===ci.id);
+    if(p) p.stock -= ci.quantity;
+  });
+
+  const sale = {
+    id: Date.now(),
+    date: new Date().toISOString(),
+    items: [...appState.cart],
+    total: appState.cart.reduce((s,i)=>s+(i.price*i.quantity),0),
+    status: 'completed'
+  };
+
+  appState.history.unshift(sale);
+  appState.cart = [];
+
+  saveState();
+  renderProducts();
+  renderCart();
+  renderHistory();
+
+  showNotification('success','Vente enregistrée',`Total: ${fmtFCFA(sale.total)}`);
+}
+
+function renderHistory(){
+  const tbody = document.getElementById('historyTableBody');
+  if(!appState.history.length){
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align:center;padding:40px;color:var(--muted);">
+          <i class="fas fa-receipt" style="font-size:48px;opacity:.3;margin-bottom:12px;display:block;"></i>
+          Aucune vente enregistrée
+        </td>
+      </tr>`;
+    return;
+  }
+
+  tbody.innerHTML = appState.history.map(sale=>{
+    const d = new Date(sale.date);
+    return `
+      <tr onclick="showSaleDetails(${sale.id})">
+        <td>${d.toLocaleDateString('fr-FR')}</td>
+        <td>${d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</td>
+        <td>${sale.items.reduce((s,i)=>s+i.quantity,0)}</td>
+        <td style="font-weight:600;color:var(--gold);">${fmtFCFA(sale.total)}</td>
+        <td><span class="status-badge status-completed">Terminé</span></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function showSaleDetails(saleId){
+  const sale = appState.history.find(s=>s.id===saleId);
+  if(!sale) return;
+  const lines = sale.items.map(i=>`${i.name} x${i.quantity} = ${fmtFCFA(i.price*i.quantity)}`).join('\n');
+  alert(`Détails\n\n${new Date(sale.date).toLocaleString('fr-FR')}\n\n${lines}\n\nTOTAL: ${fmtFCFA(sale.total)}`);
+}
+
+/* ---- Admin ---- */
+function loadAdminData(){
+  document.getElementById('adminShopName').value = appState.shopInfo.name || '';
+  document.getElementById('adminShopAddress').value = appState.shopInfo.address || '';
+  document.getElementById('adminShopPhone').value = appState.shopInfo.phone || '';
+  renderAdminProducts();
+}
+function saveShopInfo(){
+  appState.shopInfo.name = document.getElementById('adminShopName').value || 'Ma Boutique';
+  appState.shopInfo.address = document.getElementById('adminShopAddress').value || '';
+  appState.shopInfo.phone = document.getElementById('adminShopPhone').value || '';
+  document.getElementById('shopName').textContent = appState.shopInfo.name;
+  saveState();
+  showNotification('success','Enregistré','Boutique mise à jour');
+}
+
+function addProduct(){
+  const name = document.getElementById('productName').value.trim();
+  const category = document.getElementById('productCategory').value;
+  const price = parseInt(document.getElementById('productPrice').value);
+  const stock = parseInt(document.getElementById('productStock').value);
+  if(!name || !price || isNaN(stock)){
+    showNotification('error','Champs requis','Remplis nom, prix, stock');
+    return;
+  }
+  const icons = {Boissons:'🥤',Snacks:'🍟',Alimentation:'🍞',Hygiène:'🧼',Autre:'📦'};
+  appState.products.push({ id: Date.now(), name, category, price, stock, icon: icons[category] || '📦' });
+  document.getElementById('productName').value='';
+  document.getElementById('productPrice').value='';
+  document.getElementById('productStock').value='';
+  saveState();
+  renderProducts();
+  renderAdminProducts();
+  showNotification('success','Produit ajouté',name);
+}
+
+function renderAdminProducts(){
+  const list = document.getElementById('adminProductsList');
+  if(!appState.products.length){
+    list.innerHTML = `<div style="text-align:center;padding:40px;color:var(--muted);">
+      <i class="fas fa-box-open" style="font-size:48px;opacity:.3;margin-bottom:12px;"></i>
+      <p>Aucun produit</p></div>`;
+    return;
+  }
+  list.innerHTML = appState.products.map(p=>`
+    <div class="product-item">
+      <div class="product-item-info">
+        <div class="product-item-name">${p.icon||'📦'} ${p.name}</div>
+        <div class="product-item-details">${p.category} • ${fmtFCFA(p.price)} • Stock: ${p.stock}</div>
+      </div>
+      <div class="product-item-actions">
+        <button class="icon-btn" onclick="editProduct(${p.id})"><i class="fas fa-edit"></i></button>
+        <button class="icon-btn delete" onclick="deleteProduct(${p.id})"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function editProduct(productId){
+  const p = appState.products.find(x=>x.id===productId);
+  if(!p) return;
+  appState.currentEditProductId = productId;
+  document.getElementById('editProductName').value = p.name;
+  document.getElementById('editProductCategory').value = p.category;
+  document.getElementById('editProductPrice').value = p.price;
+  document.getElementById('editProductStock').value = p.stock;
+  openModal('editProductModal');
+}
+
+function saveEditedProduct(){
+  const p = appState.products.find(x=>x.id===appState.currentEditProductId);
+  if(!p) return;
+  p.name = document.getElementById('editProductName').value;
+  p.category = document.getElementById('editProductCategory').value;
+  p.price = parseInt(document.getElementById('editProductPrice').value);
+  p.stock = parseInt(document.getElementById('editProductStock').value);
+  saveState();
+  renderProducts();
+  renderAdminProducts();
+  closeModal('editProductModal');
+  showNotification('success','Modifié',p.name);
+}
+
+function deleteProduct(productId){
+  const p = appState.products.find(x=>x.id===productId);
+  if(!p) return;
+  if(confirm(`Supprimer "${p.name}" ?`)){
+    appState.products = appState.products.filter(x=>x.id!==productId);
+    saveState();
+    renderProducts();
+    renderAdminProducts();
+    showNotification('success','Supprimé',p.name);
+  }
+}
+
+function exportData(){
+  const data = JSON.stringify(appState, null, 2);
+  const blob = new Blob([data], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `digiy-pos-backup-${Date.now()}.json`;
+  a.click();
+  showNotification('success','Export','Backup généré');
+}
+
+function importData(){
+  const input = document.createElement('input');
+  input.type='file';
+  input.accept='.json';
+  input.onchange = (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const r = new FileReader();
+    r.onload = async ()=>{
+      try{
+        const data = JSON.parse(r.result);
+        appState = { ...appState, ...data };
+        await saveState();
+        location.reload();
+      }catch{
+        showNotification('error','Erreur','Fichier invalide');
       }
+    };
+    r.readAsText(file);
+  };
+  input.click();
+}
 
-      const cartItem = appState.cart.find(item => item.id === productId);
-      
-      if (cartItem) {
-        if (cartItem.quantity >= product.stock) {
-          showNotification('warning', 'Stock limité', 'Quantité maximale atteinte');
-          return;
-        }
-        cartItem.quantity++;
-      } else {
-        appState.cart.push({
-          id: product.id,
-          name: product.name,
-          price: product.price,
-          quantity: 1
-        });
-      }
+/* ---- Tabs / Modals (tu avais déjà) ---- */
+function switchTab(tab){
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  (event?.target?.closest('.nav-tab')||document.querySelector('.nav-tab')).classList.add('active');
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  if(tab==='pos') document.getElementById('posSection').classList.add('active');
+  if(tab==='history') document.getElementById('historySection').classList.add('active');
+  if(tab==='admin') document.getElementById('adminSection').classList.add('active');
+}
 
-      renderCart();
-      saveState();
+function openModal(id){ document.getElementById(id).classList.add('active'); }
+function closeModal(id){ document.getElementById(id).classList.remove('active'); }
+function showUpgradeModal(){ openModal('upgradeModal'); }
+
+/* ---------------------------
+   INIT
+--------------------------- */
+async function init(){
+  await loadState();
+  await ensureDeviceId();
+  await autoStartDemoFromURL();
+
+  // Si licence valide -> boot
+  if(licenseIsValid()){
+    bootApp();
+    return;
+  }
+
+  // Si démo valide -> boot
+  if(demoIsValid()){
+    bootApp();
+    return;
+  }
+
+  // Sinon : show activation screen
+  document.getElementById('activationScreen').classList.add('active');
+  document.getElementById('mainApp').style.display = 'none';
+
+  // petit refresh badge
+  updateBadge();
+  updateDemoUI();
+
+  // Watchdog (au cas où la démo expire pendant qu’il travaille)
+  setInterval(()=>{
+    if(!licenseIsValid() && !demoIsValid() && appState.demoStart){
+      hardBlock();
     }
+    updateBadge();
+    updateDemoUI();
+  }, 60000);
+}
 
-    function removeFromCart(productId) {
-      appState.cart = appState.cart.filter(item => item.id !== productId);
-      renderCart();
-      saveState();
-    }
+document.addEventListener('DOMContentLoaded', init);
 
-    function updateQuantity(productId, delta) {
-      const cartItem = appState.cart.find(item => item.id === productId);
-      const product = appState.products.find(p => p.id === productId);
-      
-      if (!cartItem) return;
-
-      cartItem.quantity += delta;
-
-      if (cartItem.quantity <= 0) {
-        removeFromCart(productId);
-      } else if (cartItem.quantity > product.stock) {
-        cartItem.quantity = product.stock;
-        showNotification('warning', 'Stock limité', 'Quantité maximale atteinte');
-      }
-
-      renderCart();
-      saveState();
-    }
-
-    function clearCart() {
-      if (appState.cart.length === 0) return;
-      
-      if (confirm('Voulez-vous vraiment vider le panier ?')) {
-        appState.cart = [];
-        renderCart();
-        saveState();
-        showNotification('success', 'Panier vidé', 'Tous les articles ont été retirés');
-      }
-    }
-
-    function renderCart() {
-      const container = document.getElementById('cartItems');
-      const btn = document.getElementById('checkoutBtn');
-
-      if (appState.cart.length === 0) {
-        container.innerHTML = `
-          <div class="cart-empty">
-            <i class="fas fa-shopping-basket"></i>
-            <p>Votre panier est vide</p>
-          </div>
-        `;
-        btn.disabled = true;
-        updateCartSummary();
-        return;
-      }
-
-      container.innerHTML = appState.cart.map(item => `
-        <div class="cart-item">
-          <div class="cart-item-header">
-            <div class="cart-item-name">${item.name}</div>
-            <button class="cart-item-remove" onclick="removeFromCart(${item.id})">
-              <i class="fas fa-times"></i>
-            </button>
-          </div>
-          <div class="cart-item-controls">
-            <div class="quantity-controls">
-              <button class="qty-btn" onclick="updateQuantity(${item.id}, -1)">-</button>
-              <span class="qty-value">${item.quantity}</span>
-              <button class="qty-btn" onclick="updateQuantity(${item.id}, 1)">+</button>
-            </div>
-            <div class="cart-item-price">${(item.price * item.quantity).toLocaleString()} FCFA</div>
-          </div>
-        </div>
-      `).join('');
-
-      btn.disabled = false;
-      updateCartSummary();
-    }
-
-    function updateCartSummary() {
-      const totalItems = appState.cart.reduce((sum, item) => sum + item.quantity, 0);
-      const subtotal = appState.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-      document.getElementById('totalItems').textContent = totalItems;
-      document.getElementById('subtotal').textContent = subtotal.toLocaleString() + ' FCFA';
-      document.getElementById('total').textContent = subtotal.toLocaleString() + ' FCFA';
-    }
-
-    /* ===== CHECKOUT ===== */
-    function checkout() {
-      if (appState.cart.length === 0) return;
-
-      // Check demo limits
-      if (appState.isDemo) {
-        const startDate = new Date(appState.demoStartDate);
-        const today = new Date();
-        const daysPassed = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
-        
-        if (daysPassed >= 14 || appState.demoSalesCount >= 30) {
-          showUpgradeModal();
-          return;
-        }
-      }
-
-      // Update stock
-      appState.cart.forEach(cartItem => {
-        const product = appState.products.find(p => p.id === cartItem.id);
-        if (product) {
-          product.stock -= cartItem.quantity;
-        }
-      });
-
-      // Add to history
-      const sale = {
-        id: Date.now(),
-        date: new Date().toISOString(),
-        items: [...appState.cart],
-        total: appState.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
-        status: 'completed'
-      };
-      appState.history.unshift(sale);
-
-      // Update demo counter
-      if (appState.isDemo) {
-        appState.demoSalesCount++;
-        updateDemoCounters();
-      }
-
-      // Clear cart
-      appState.cart = [];
-      
-      saveState();
-      renderProducts();
-      renderCart();
-      renderHistory();
-
-      showNotification('success', 'Vente enregistrée', `Total: ${sale.total.toLocaleString()} FCFA`);
-    }
-
-    /* ===== HISTORY ===== */
-    function renderHistory() {
-      const tbody = document.getElementById('historyTableBody');
-
-      if (appState.history.length === 0) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="5" style="text-align: center; padding: 40px; color: var(--muted);">
-              <i class="fas fa-receipt" style="font-size: 48px; opacity: 0.3; margin-bottom: 12px; display: block;"></i>
-              Aucune vente enregistrée
-            </td>
-          </tr>
-        `;
-        return;
-      }
-
-      tbody.innerHTML = appState.history.map(sale => {
-        const date = new Date(sale.date);
-        return `
-          <tr onclick="showSaleDetails(${sale.id})">
-            <td>${date.toLocaleDateString('fr-FR')}</td>
-            <td>${date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</td>
-            <td>${sale.items.reduce((sum, item) => sum + item.quantity, 0)}</td>
-            <td style="font-weight: 600; color: var(--gold);">${sale.total.toLocaleString()} FCFA</td>
-            <td><span class="status-badge status-completed">Terminé</span></td>
-          </tr>
-        `;
-      }).join('');
-    }
-
-    function filterHistory() {
-      // TODO: Implement filtering
-      renderHistory();
-    }
-
-    function showSaleDetails(saleId) {
-      const sale = appState.history.find(s => s.id === saleId);
-      if (!sale) return;
-
-      const details = sale.items.map(item => 
-        `${item.name} x${item.quantity} = ${(item.price * item.quantity).toLocaleString()} FCFA`
-      ).join('\n');
-
-      alert(`Détails de la vente\n\nDate: ${new Date(sale.date).toLocaleString('fr-FR')}\n\n${details}\n\nTOTAL: ${sale.total.toLocaleString()} FCFA`);
-    }
-
-    /* ===== ADMIN ===== */
-    function loadAdminData() {
-      document.getElementById('adminShopName').value = appState.shopInfo.name;
-      document.getElementById('adminShopAddress').value = appState.shopInfo.address;
-      document.getElementById('adminShopPhone').value = appState.shopInfo.phone;
-      renderAdminProducts();
-    }
-
-    function saveShopInfo() {
-      appState.shopInfo.name = document.getElementById('adminShopName').value;
-      appState.shopInfo.address = document.getElementById('adminShopAddress').value;
-      appState.shopInfo.phone = document.getElementById('adminShopPhone').value;
-
-      document.getElementById('shopName').textContent = appState.shopInfo.name;
-      
-      saveState();
-      showNotification('success', 'Enregistré', 'Informations de la boutique mises à jour');
-    }
-
-    function addProduct() {
-      const name = document.getElementById('productName').value.trim();
-      const category = document.getElementById('productCategory').value;
-      const price = parseInt(document.getElementById('productPrice').value);
-      const stock = parseInt(document.getElementById('productStock').value);
-
-      if (!name || !price || !stock) {
-        showNotification('error', 'Champs requis', 'Veuillez remplir tous les champs');
-        return;
-      }
-
-      const icons = {
-        'Boissons': '🥤',
-        'Snacks': '🍟',
-        'Alimentation': '🍞',
-        'Hygiène': '🧼',
-        'Autre': '📦'
-      };
-
-      const newProduct = {
-        id: Date.now(),
-        name,
-        category,
-        price,
-        stock,
-        icon: icons[category] || '📦'
-      };
-
-      appState.products.push(newProduct);
-      
-      document.getElementById('productName').value = '';
-      document.getElementById('productPrice').value = '';
-      document.getElementById('productStock').value = '';
-
-      saveState();
-      renderProducts();
-      renderAdminProducts();
-      showNotification('success', 'Produit ajouté', name);
-    }
-
-    function renderAdminProducts() {
-      const list = document.getElementById('adminProductsList');
-
-      if (appState.products.length === 0) {
-        list.innerHTML = `
-          <div style="text-align: center; padding: 40px; color: var(--muted);">
-            <i class="fas fa-box-open" style="font-size: 48px; opacity: 0.3; margin-bottom: 12px;"></i>
-            <p>Aucun produit</p>
-          </div>
-        `;
-        return;
-      }
-
-      list.innerHTML = appState.products.map(p => `
-        <div class="product-item">
-          <div class="product-item-info">
-            <div class="product-item-name">${p.icon} ${p.name}</div>
-            <div class="product-item-details">
-              ${p.category} • ${p.price.toLocaleString()} FCFA • Stock: ${p.stock}
-            </div>
-          </div>
-          <div class="product-item-actions">
-            <button class="icon-btn" onclick="editProduct(${p.id})">
-              <i class="fas fa-edit"></i>
-            </button>
-            <button class="icon-btn delete" onclick="deleteProduct(${p.id})">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    function editProduct(productId) {
-      const product = appState.products.find(p => p.id === productId);
-      if (!product) return;
-
-      appState.currentEditProductId = productId;
-
-      document.getElementById('editProductName').value = product.name;
-      document.getElementById('editProductCategory').value = product.category;
-      document.getElementById('editProductPrice').value = product.price;
-      document.getElementById('editProductStock').value = product.stock;
-
-      openModal('editProductModal');
-    }
-
-    function saveEditedProduct() {
-      const product = appState.products.find(p => p.id === appState.currentEditProductId);
-      if (!product) return;
-
-      product.name = document.getElementById('editProductName').value;
-      product.category = document.getElementById('editProductCategory').value;
-      product.price = parseInt(document.getElementById('editProductPrice').value);
-      product.stock = parseInt(document.getElementById('editProductStock').value);
-
-      saveState();
-      renderProducts();
-      renderAdminProducts();
-      closeModal('editProductModal');
-      showNotification('success', 'Modifié', product.name);
-    }
-
-    function deleteProduct(productId) {
-      const product = appState.products.find(p => p.id === productId);
-      if (!product) return;
-
-      if (confirm(`Supprimer "${product.name}" ?`)) {
-        appState.products = appState.products.filter(p => p.id !== productId);
-        saveState();
-        renderProducts();
-        renderAdminProducts();
-        showNotification('success', 'Supprimé', product.name);
-      }
-    }
-
-    function exportData() {
-      const data = JSON.stringify(appState, null, 2);
-      const blob = new Blob([data], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `digiy-pos-backup-${Date.now()}.json`;
-      a.click();
-      showNotification('success', 'Export réussi', 'Données sauvegardées');
-    }
-
-    function importData() {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.json';
-      input.onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          try {
-            const data = JSON.parse(event.target.result);
-            appState = data;
-            saveState();
-            location.reload();
-          } catch (err) {
-            showNotification('error', 'Erreur', 'Fichier invalide');
-          }
-        };
-        reader.readAsText(file);
-      };
-      input.click();
-    }
-
-    /* ===== TABS ===== */
-    function switchTab(tab) {
-      // Update nav
-      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-      event.target.closest('.nav-tab').classList.add('active');
-
-      // Update sections
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      
-      if (tab === 'pos') {
-        document.getElementById('posSection').classList.add('active');
-      } else if (tab === 'history') {
-        document.getElementById('historySection').classList.add('active');
-        renderHistory();
-      } else if (tab === 'admin') {
-        document.getElementById('adminSection').classList.add('active');
-        loadAdminData();
-      }
-    }
-
-    /* ===== MODALS ===== */
-    function openModal(modalId) {
-      document.getElementById(modalId).classList.add('active');
-    }
-
-    function closeModal(modalId) {
-      document.getElementById(modalId).classList.remove('active');
-    }
-
-    function showUpgradeModal() {
-      openModal('upgradeModal');
-    }
-
-    /* ===== NOTIFICATIONS ===== */
-    function showNotification(type, title, message) {
-      const icons = {
-        success: 'fa-check-circle',
-        error: 'fa-exclamation-circle',
-        warning: 'fa-exclamation-triangle'
-      };
-
-      const notif = document.createElement('div');
-      notif.className = `notification ${type}`;
-      notif.innerHTML = `
-        <i class="fas ${icons[type]}"></i>
-        <div class="notification-content">
-          <div class="notification-title">${title}</div>
-          <div class="notification-message">${message}</div>
-        </div>
-      `;
-
-      document.body.appendChild(notif);
-
-      setTimeout(() => {
-        notif.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => notif.remove(), 300);
-      }, 3000);
-    }
-
-    /* ===== STORAGE ===== */
-    function saveState() {
-      localStorage.setItem('digiyPosState', JSON.stringify(appState));
-    }
-
-    function loadState() {
-      const saved = localStorage.getItem('digiyPosState');
-      if (saved) {
-        appState = JSON.parse(saved);
-      }
-    }
-
-    /* ===== START ===== */
-    document.addEventListener('DOMContentLoaded', init);
-  </script>
-
+// expose global (pour tes onclick HTML)
+window.activateLicense = activateLicense;
+window.startDemoMode = startDemoMode;
+window.checkout = checkout;
+window.searchProducts = searchProducts;
+window.filterCategory = filterCategory;
+window.addToCart = addToCart;
+window.removeFromCart = removeFromCart;
+window.updateQuantity = updateQuantity;
+window.clearCart = clearCart;
+window.saveShopInfo = saveShopInfo;
+window.addProduct = addProduct;
+window.exportData = exportData;
+window.importData = importData;
+window.switchTab = switchTab;
+window.openModal = openModal;
+window.closeModal = closeModal;
+window.showUpgradeModal = showUpgradeModal;
+window.editProduct = editProduct;
+window.saveEditedProduct = saveEditedProduct;
+window.deleteProduct = deleteProduct;
+window.showSaleDetails = showSaleDetails;
+</script>
 </body>
 </html>
