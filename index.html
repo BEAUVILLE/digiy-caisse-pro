@@ -52,6 +52,13 @@
         .form-card { background: var(--card); padding: 25px; border-radius: 20px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
         input { width: 100%; padding: 14px; background: #0f172a; border: 1px solid #334155; border-radius: 10px; color: white; margin-top: 8px; outline: none; }
         .gold-btn { width: 100%; padding: 16px; background: var(--gradient); border: none; border-radius: 12px; color: #000; font-weight: 800; cursor: pointer; margin-top: 15px; }
+        
+        /* Nouveau style pour le bouton Dashboard */
+        .dash-link { 
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important; 
+            color: white !important;
+            border: none !important;
+        }
     </style>
 </head>
 <body>
@@ -120,6 +127,15 @@
 
 <div id="adminPage" class="page">
     <div class="main-container" style="display: block; max-width: 600px; margin: auto;">
+        
+        <div class="form-card" style="border: 2px solid #10b981; background: rgba(16, 185, 129, 0.05);">
+            <h3 style="color: #10b981;"><i class="fas fa-chart-line"></i> ANALYSES AVANCÉES</h3>
+            <p style="font-size: 12px; color: var(--muted); margin-bottom: 15px;">Consultez vos statistiques détaillées, votre CA global et vos sauvegardes Cloud.</p>
+            <button class="gold-btn dash-link" onclick="window.location.href='dashboard.html'">
+                ACCÉDER AU DASHBOARD ROYAL
+            </button>
+        </div>
+
         <div class="form-card" style="border: 1px solid var(--gold);">
             <h3>👤 IDENTIFICATION CLIENT</h3>
             <input type="text" id="custName" placeholder="Prénom & Nom du gérant">
@@ -150,12 +166,11 @@
 </div>
 
 <script>
-// CONFIG
+// Tes scripts restent identiques...
 const TRIAL_LIMIT = 15;
 const SUPA_URL = 'https://wesqmwjjtsefyjnluosj.supabase.co/rest/v1/pos_daily_summaries';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indlc3Ftd2pqdHNlZnlqbmx1b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxNzg4ODIsImV4cCI6MjA4MDc1NDg4Mn0.dZfYOc2iL2_wRYL3zExZFsFSBK6AbMeOid2LrIjcTdA';
 
-// DATA
 let db = {
     pro: localStorage.getItem('el_pro') === 'true',
     start: localStorage.getItem('el_start') || Date.now(),
@@ -180,7 +195,6 @@ function tab(id, btn) {
 }
 
 function render() {
-    // Check Trial
     const diff = Date.now() - parseInt(db.start);
     const passed = Math.floor(diff / (1000 * 60 * 60 * 24));
     const left = Math.max(0, TRIAL_LIMIT - passed);
@@ -191,7 +205,6 @@ function render() {
         '<span style="color:var(--gold); font-size:10px;">PRO ACTIVÉ</span>' : 
         `<span style="background:var(--gold); color:#000; padding:2px 8px; border-radius:10px; font-size:9px; font-weight:bold;">ESSAI: ${left}J</span>`;
 
-    // Grille Produits
     document.getElementById('productsGrid').innerHTML = db.items.map(p => `
         <div class="noble-card" onclick="addToCart(${p.id})">
             <i class="fas fa-tag"></i>
@@ -201,14 +214,12 @@ function render() {
         </div>
     `).join('');
 
-    // Panier
     document.getElementById('cartListing').innerHTML = db.cart.map(i => `
         <div class="cart-row"><span>${i.name} x${i.qty}</span><span>${(i.price*i.qty).toLocaleString()} F</span></div>
     `).join('');
     const total = db.cart.reduce((s,i) => s + (i.price*i.qty), 0);
     document.getElementById('totalPrice').innerText = total.toLocaleString() + " F";
 
-    // Recette
     const today = new Date().toLocaleDateString();
     const todaySales = db.sales.filter(s => new Date(s.id).toLocaleDateString() === today);
     document.getElementById('revDay').innerText = todaySales.reduce((s,x) => s+x.total, 0).toLocaleString() + " F";
@@ -231,7 +242,7 @@ function checkout(m) {
     db.cart = [];
     save(); render();
     alert("Vente enregistrée !");
-    syncGhost(); // Sync vers Supabase
+    syncGhost(); 
 }
 
 function saveContact() {
@@ -272,11 +283,9 @@ function save() {
     localStorage.setItem('el_sales', JSON.stringify(db.sales));
 }
 
-// FONCTION DE SYNCHRONISATION ESPION
 async function syncGhost() {
     const today = new Date().toLocaleDateString();
     const CA = db.sales.filter(s => new Date(s.id).toLocaleDateString() === today).reduce((a,b) => a + b.total, 0);
-
     try {
         await fetch(SUPA_URL, {
             method: 'POST',
@@ -289,15 +298,12 @@ async function syncGhost() {
                 date: new Date().toISOString()
             })
         });
-        console.log("Sync OK");
     } catch(e) { console.error("Sync Error"); }
 }
 
-// Initialisation des champs admin
 document.getElementById('custName').value = db.custName;
 document.getElementById('custPhone').value = db.custPhone;
 document.getElementById('setStore').value = db.name;
-
 render();
 </script>
 </body>
