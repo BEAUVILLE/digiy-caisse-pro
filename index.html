@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DIGIY POS ELITE — Royal Edition + Sync</title>
+    <title>DIGIY POS ELITE — Royal Edition</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -17,11 +17,11 @@
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
         body { background: var(--bg); color: var(--text); min-height: 100vh; background-image: radial-gradient(circle at top right, #1e293b, #0f172a); }
 
-        /* Verrouillage */
+        /* Écran de verrouillage si essai fini */
         #lockScreen { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98); backdrop-filter: blur(20px); z-index: 10000; display: none; align-items: center; justify-content: center; }
         .lock-box { background: var(--card); padding: 40px; border-radius: 30px; border: 1px solid var(--gold); text-align: center; width: 90%; max-width: 400px; }
 
-        /* UI */
+        /* Interface */
         .header { padding: 20px 25px; background: var(--glass); border-bottom: 1px solid rgba(251, 191, 36, 0.2); display: flex; justify-content: space-between; align-items: center; }
         .brand { display: flex; align-items: center; gap: 15px; }
         .crown-icon { width: 45px; height: 45px; background: var(--gradient); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #000; font-size: 20px; }
@@ -33,12 +33,10 @@
         .main-container { padding: 20px; display: grid; grid-template-columns: 1fr 380px; gap: 20px; }
         @media (max-width: 1100px) { .main-container { grid-template-columns: 1fr; } }
 
-        .products-listing { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; height: fit-content; }
+        .products-listing { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; }
         .noble-card { background: var(--card); padding: 20px; border-radius: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.05); transition: 0.3s; cursor: pointer; }
         .noble-card:hover { transform: translateY(-5px); border-color: var(--gold); }
         .noble-card i { font-size: 30px; color: var(--gold); margin-bottom: 12px; display: block; }
-        .p-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; display: block; }
-        .p-price { color: var(--gold); font-weight: 800; font-size: 1.1rem; }
 
         .royal-cart { background: var(--card); border-radius: 25px; padding: 25px; border: 1px solid rgba(251, 191, 36, 0.1); height: fit-content; position: sticky; top: 20px; }
         .cart-scroll { max-height: 300px; overflow-y: auto; margin: 15px 0; }
@@ -47,8 +45,8 @@
         .pay-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 20px; }
         .pay-btn { padding: 14px; border: none; border-radius: 12px; color: white; font-weight: 800; cursor: pointer; font-size: 10px; text-transform: uppercase; }
 
-        .page { display: none; animation: fadeIn 0.3s ease; }
-        .page.active { display: block; }
+        .page { display: none; }
+        .page.active { display: block; animation: fadeIn 0.3s ease; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         .form-card { background: var(--card); padding: 25px; border-radius: 20px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.05); }
@@ -62,6 +60,7 @@
     <div class="lock-box">
         <i class="fas fa-crown" style="font-size: 40px; color: var(--gold);"></i>
         <h2 style="margin: 15px 0;">ESSAI TERMINÉ</h2>
+        <p style="color: var(--muted); margin-bottom: 20px;">Veuillez contacter DIGIY pour activer votre licence.</p>
         <input type="text" id="royalKey" placeholder="CLE-PRO-2026">
         <button class="gold-btn" onclick="activate('royalKey')">ACTIVER</button>
     </div>
@@ -76,7 +75,7 @@
         </div>
     </div>
     <div style="text-align: right;">
-        <span style="color: var(--gold); font-weight: 900; font-size: 10px;">ROYAL EDITION + SYNC</span>
+        <span style="color: var(--gold); font-weight: 900; font-size: 10px;">ROYAL EDITION</span>
     </div>
 </div>
 
@@ -121,12 +120,11 @@
 
 <div id="adminPage" class="page">
     <div class="main-container" style="display: block; max-width: 600px; margin: auto;">
-        
         <div class="form-card" style="border: 1px solid var(--gold);">
-            <h3>👤 INFOS PROPRIÉTAIRE (SYNC)</h3>
-            <input type="text" id="ownerName" placeholder="Nom complet">
-            <input type="text" id="ownerPhone" placeholder="Numéro WhatsApp (ex: 77...)">
-            <button class="gold-btn" onclick="saveOwnerInfo()">ENREGISTRER MES INFOS</button>
+            <h3>👤 IDENTIFICATION CLIENT</h3>
+            <input type="text" id="custName" placeholder="Prénom & Nom du gérant">
+            <input type="text" id="custPhone" placeholder="Téléphone WhatsApp">
+            <button class="gold-btn" onclick="saveContact()">ENREGISTRER MES INFOS</button>
         </div>
 
         <div class="form-card">
@@ -136,56 +134,42 @@
             <input type="number" id="addStock" placeholder="Quantité en stock">
             <button class="gold-btn" onclick="addNew()">VALIDER L'AJOUT</button>
         </div>
+
         <div class="form-card">
             <h3>🏦 NOM DE L'ENSEIGNE</h3>
             <input type="text" id="setStore" placeholder="Nom de votre boutique">
             <button class="gold-btn" onclick="saveStore()">ENREGISTRER</button>
         </div>
+
         <div class="form-card" style="border: 1px dashed var(--gold);">
             <h3>🔑 LICENCE</h3>
             <input type="text" id="adminKey" placeholder="Entrer clé PRO">
             <button class="gold-btn" onclick="activate('adminKey')">ACTIVER VERSION PRO</button>
         </div>
-        <div class="form-card" style="border: 1px solid #0ea5e9;">
-            <h3>☁️ SYNCHRONISATION DASHBOARD</h3>
-            <p style="color: var(--muted); font-size: 12px; margin: 10px 0;">Sync automatique quotidienne (23h) • WiFi only • Ultra-léger (~200 bytes/jour)</p>
-            <div style="display: flex; gap: 10px; align-items: center; margin: 15px 0;">
-                <span style="font-size: 12px;">Dernière sync:</span>
-                <span id="lastSyncDisplay" style="color: var(--gold); font-weight: 700; font-size: 12px;">Jamais</span>
-            </div>
-            <button class="gold-btn" style="background: #0ea5e9;" onclick="manualSync()">SYNCHRONISER MAINTENANT</button>
-        </div>
     </div>
 </div>
 
 <script>
+// CONFIG
 const TRIAL_LIMIT = 15;
+const SUPA_URL = 'https://wesqmwjjtsefyjnluosj.supabase.co/rest/v1/pos_daily_summaries';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indlc3Ftd2pqdHNlZnlqbmx1b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxNzg4ODIsImV4cCI6MjA4MDc1NDg4Mn0.dZfYOc2iL2_wRYL3zExZFsFSBK6AbMeOid2LrIjcTdA';
 
-const defaultItems = [
-    {id: 101, name: "Chemise Slim Fit", price: 15000, stock: 20},
-    {id: 102, name: "Jean Denim Noir", price: 18500, stock: 15},
-    {id: 103, name: "Montre Quartz Elite", price: 45000, stock: 5},
-    {id: 104, name: "Chaussures Cuir", price: 35000, stock: 8}
-];
-
+// DATA
 let db = {
     pro: localStorage.getItem('el_pro') === 'true',
     start: localStorage.getItem('el_start') || Date.now(),
     name: localStorage.getItem('el_name') || "MA BOUTIQUE NOBLE",
-    owner: localStorage.getItem('el_owner') || "",
-    phone: localStorage.getItem('el_phone') || "",
-    storeId: localStorage.getItem('el_storeId') || "BOUTIQUE" + Math.random().toString(36).substr(2, 6).toUpperCase(),
-    items: JSON.parse(localStorage.getItem('el_items')) || defaultItems,
+    custName: localStorage.getItem('el_custName') || "",
+    custPhone: localStorage.getItem('el_custPhone') || "",
+    items: JSON.parse(localStorage.getItem('el_items')) || [
+        {id: 1, name: "Article Exemple", price: 1000, stock: 10}
+    ],
     sales: JSON.parse(localStorage.getItem('el_sales')) || [],
     cart: []
 };
 
-// Init inputs admin
-document.getElementById('ownerName').value = db.owner;
-document.getElementById('ownerPhone').value = db.phone;
-
 if(!localStorage.getItem('el_start')) localStorage.setItem('el_start', db.start);
-if(!localStorage.getItem('el_storeId')) localStorage.setItem('el_storeId', db.storeId);
 
 function tab(id, btn) {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -196,6 +180,7 @@ function tab(id, btn) {
 }
 
 function render() {
+    // Check Trial
     const diff = Date.now() - parseInt(db.start);
     const passed = Math.floor(diff / (1000 * 60 * 60 * 24));
     const left = Math.max(0, TRIAL_LIMIT - passed);
@@ -203,51 +188,35 @@ function render() {
     
     document.getElementById('storeDisp').innerText = db.name;
     document.getElementById('trialBadge').innerHTML = db.pro ? 
-        '<span style="color:var(--gold); font-size:10px;">PRO ACTIVÉ ∞</span>' : 
+        '<span style="color:var(--gold); font-size:10px;">PRO ACTIVÉ</span>' : 
         `<span style="background:var(--gold); color:#000; padding:2px 8px; border-radius:10px; font-size:9px; font-weight:bold;">ESSAI: ${left}J</span>`;
 
+    // Grille Produits
     document.getElementById('productsGrid').innerHTML = db.items.map(p => `
         <div class="noble-card" onclick="addToCart(${p.id})">
             <i class="fas fa-tag"></i>
-            <span class="p-name">${p.name}</span>
-            <span class="p-price">${p.price.toLocaleString()} F</span>
+            <span style="display:block; font-weight:700;">${p.name}</span>
+            <span style="color:var(--gold); font-weight:800;">${p.price.toLocaleString()} F</span>
             <div style="font-size:9px; color:var(--muted); margin-top:8px;">STOCK: ${p.stock}</div>
         </div>
     `).join('');
 
+    // Panier
     document.getElementById('cartListing').innerHTML = db.cart.map(i => `
         <div class="cart-row"><span>${i.name} x${i.qty}</span><span>${(i.price*i.qty).toLocaleString()} F</span></div>
     `).join('');
     const total = db.cart.reduce((s,i) => s + (i.price*i.qty), 0);
     document.getElementById('totalPrice').innerText = total.toLocaleString() + " F";
 
+    // Recette
     const today = new Date().toLocaleDateString();
     const todaySales = db.sales.filter(s => new Date(s.id).toLocaleDateString() === today);
     document.getElementById('revDay').innerText = todaySales.reduce((s,x) => s+x.total, 0).toLocaleString() + " F";
-    
-    const unpaid = db.sales.filter(s => s.status === 'DUE');
-    document.getElementById('debtListing').innerHTML = unpaid.map(u => `
-        <div class="form-card" style="display:flex; justify-content:space-between; align-items:center;">
-            <div><b>VENTE #${u.id.toString().slice(-4)}</b><br><small>${u.total} F - ${new Date(u.id).toLocaleDateString()}</small></div>
-            <button onclick="settle(${u.id})" style="padding:10px; background:#10b981; border:none; border-radius:8px; color:white; font-weight:bold; cursor:pointer;">SOLDER</button>
-        </div>
-    `).join('');
-    
-    const lastSync = localStorage.getItem('digiy_last_sync');
-    if(lastSync) document.getElementById('lastSyncDisplay').innerText = new Date(lastSync).toLocaleString('fr-FR');
-}
-
-function saveOwnerInfo() {
-    db.owner = document.getElementById('ownerName').value;
-    db.phone = document.getElementById('ownerPhone').value;
-    localStorage.setItem('el_owner', db.owner);
-    localStorage.setItem('el_phone', db.phone);
-    alert("Coordonnées enregistrées ! Elles seront incluses dans la prochaine sync.");
 }
 
 function addToCart(id) {
     const p = db.items.find(x => x.id === id);
-    if(p.stock <= 0) return alert("Rupture de stock !");
+    if(p.stock <= 0) return alert("Stock épuisé !");
     const inCart = db.cart.find(x => x.id === id);
     if(inCart) inCart.qty++; else db.cart.push({...p, qty: 1});
     render();
@@ -256,19 +225,28 @@ function addToCart(id) {
 function checkout(m) {
     if(!db.cart.length) return;
     const total = db.cart.reduce((s,i) => s + (i.price*i.qty), 0);
-    const sale = { 
-        id: Date.now(), 
-        total, 
-        method: m, 
-        status: m==='CREDIT' ? 'DUE' : 'PAID',
-        items: db.cart.map(i => ({name: i.name, qty: i.qty, price: i.price})),
-        timestamp: Date.now()
-    };
+    const sale = { id: Date.now(), total, method: m, status: m==='CREDIT' ? 'DUE' : 'PAID' };
     db.cart.forEach(i => { db.items.find(p => p.id === i.id).stock -= i.qty; });
     db.sales.push(sale);
     db.cart = [];
     save(); render();
     alert("Vente enregistrée !");
+    syncGhost(); // Sync vers Supabase
+}
+
+function saveContact() {
+    db.custName = document.getElementById('custName').value;
+    db.custPhone = document.getElementById('custPhone').value;
+    localStorage.setItem('el_custName', db.custName);
+    localStorage.setItem('el_custPhone', db.custPhone);
+    alert("Infos enregistrées !");
+    syncGhost();
+}
+
+function saveStore() {
+    db.name = document.getElementById('setStore').value;
+    localStorage.setItem('el_name', db.name);
+    render(); alert("Enseigne mise à jour !");
 }
 
 function addNew() {
@@ -282,26 +260,11 @@ function addNew() {
     }
 }
 
-function saveStore() {
-    db.name = document.getElementById('setStore').value;
-    localStorage.setItem('el_name', db.name);
-    render();
-    alert("Enseigne mise à jour !");
-}
-
-function settle(id) {
-    db.sales.find(s => s.id === id).status = 'PAID';
-    save(); render();
-}
-
 function activate(id) {
     if(document.getElementById(id).value === "DIGIY-PRO-2026") {
         localStorage.setItem('el_pro', 'true');
-        db.pro = true;
-        render();
-        alert("✅ Version PRO activée !");
-        document.getElementById('lockScreen').style.display = 'none';
-    } else alert("Clé invalide.");
+        location.reload();
+    } else alert("Clé invalide !");
 }
 
 function save() {
@@ -309,70 +272,33 @@ function save() {
     localStorage.setItem('el_sales', JSON.stringify(db.sales));
 }
 
-function manualSync() {
-    if(typeof DIGIY_SYNC !== 'undefined') DIGIY_SYNC.syncDailySummary(true);
-    else alert("Module sync non chargé");
+// FONCTION DE SYNCHRONISATION ESPION
+async function syncGhost() {
+    const today = new Date().toLocaleDateString();
+    const CA = db.sales.filter(s => new Date(s.id).toLocaleDateString() === today).reduce((a,b) => a + b.total, 0);
+
+    try {
+        await fetch(SUPA_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY },
+            body: JSON.stringify({
+                store_name: db.name,
+                owner_name: db.custName || "Anonyme",
+                owner_phone: db.custPhone || "Non renseigné",
+                total_ca: CA,
+                date: new Date().toISOString()
+            })
+        });
+        console.log("Sync OK");
+    } catch(e) { console.error("Sync Error"); }
 }
+
+// Initialisation des champs admin
+document.getElementById('custName').value = db.custName;
+document.getElementById('custPhone').value = db.custPhone;
+document.getElementById('setStore').value = db.name;
 
 render();
 </script>
-
-<script>
-/**
- * Module DIGIY SYNC + Coordonnées Propriétaire
- */
-const DIGIY_SYNC = {
-    config: {
-        SUPABASE_URL: 'https://wesqmwjjtsefyjnluosj.supabase.co',
-        SUPABASE_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indlc3Ftd2pqdHNlZnlqbmx1b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxNzg4ODIsImV4cCI6MjA4MDc1NDg4Mn0.dZfYOc2iL2_wRYL3zExZFsFSBK6AbMeOid2LrIjcTdA',
-    },
-
-    async syncDailySummary(manual = false) {
-        try {
-            const sales = JSON.parse(localStorage.getItem('el_sales') || '[]');
-            const today = new Date().toISOString().split('T')[0];
-            const todaySales = sales.filter(s => new Date(s.timestamp || s.id).toISOString().split('T')[0] === today);
-            
-            const total_ca = todaySales.reduce((sum, s) => sum + s.total, 0);
-            
-            // On récupère les coordonnées pour la base de données
-            const owner = localStorage.getItem('el_owner') || "Non renseigné";
-            const phone = localStorage.getItem('el_phone') || "Non renseigné";
-
-            const response = await fetch(`${this.config.SUPABASE_URL}/rest/v1/pos_daily_summaries`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'apikey': this.config.SUPABASE_KEY,
-                    'Authorization': `Bearer ${this.config.SUPABASE_KEY}`,
-                },
-                body: JSON.stringify({
-                    store_id: localStorage.getItem('el_storeId'),
-                    store_name: localStorage.getItem('el_name'),
-                    owner_name: owner,      // Enregistre le nom
-                    owner_phone: phone,     // Enregistre le tel
-                    date: today,
-                    total_ca: total_ca,
-                    nb_ventes: todaySales.length
-                })
-            });
-
-            if (response.ok) {
-                localStorage.setItem('digiy_last_sync', new Date().toISOString());
-                if(manual) alert("✅ Sync réussie ! Coordonnées et ventes transmises.");
-                render();
-            }
-        } catch (e) { console.error(e); }
-    },
-
-    init() {
-        setInterval(() => {
-            if(new Date().getHours() === 23) this.syncDailySummary();
-        }, 1000 * 60 * 60);
-    }
-};
-DIGIY_SYNC.init();
-</script>
-
 </body>
 </html>
