@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DIGIY ADMIN — Créer un Commerçant 🦅</title>
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- QR Code -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  
+  <style>
+    :root {
+      --gold: #fbbf24; --gold-dark: #d97706;
+      --bg: #0f172a; --card: #1e293b;
+      --text: #f8fafc; --muted: #94a3b8;
+      --green: #10b981; --red: #ef4444;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, var(--bg), #020617);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 600px;
+      width: 100%;
+    }
+    
+    .card {
+      background: var(--card);
+      border: 1px solid rgba(251, 191, 36, 0.2);
+      border-radius: 20px;
+      padding: 30px;
+      margin-bottom: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    }
+    
+    h1 {
+      font-size: 24px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 25px;
+    }
+    
+    label {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 18px;
+      border-radius: 10px;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+    }
+    
+    input:focus, select:focus {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1);
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, var(--gold), var(--gold-dark));
+      color: #000;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(251, 191, 36, 0.3);
+    }
+    
+    .btn-success {
+      background: var(--green);
+      color: white;
+      margin-top: 10px;
+    }
+    
+    .result {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    .result.active {
+      display: block;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    .info-label {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    
+    .info-value {
+      color: var(--gold);
+      font-weight: 700;
+      font-size: 14px;
+    }
+    
+    .link-box {
+      background: var(--bg);
+      padding: 12px;
+      border-radius: 10px;
+      margin: 15px 0;
+      word-break: break-all;
+      font-size: 13px;
+      color: var(--green);
+      font-family: monospace;
+    }
+    
+    #qrcode {
+      display: flex;
+      justify-content: center;
+      margin: 20px 0;
+    }
+    
+    #qrcode canvas {
+      border-radius: 10px;
+      border: 3px solid var(--gold);
+    }
+    
+    .note {
+      background: rgba(251, 191, 36, 0.1);
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      border-radius: 10px;
+      padding: 12px;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="card">
+    <h1>🦅 DIGIY ADMIN</h1>
+    <div class="subtitle">Créer un nouveau commerçant sur le rail unifié</div>
+    
+    <form id="formCreate" onsubmit="createMerchant(event)">
+      <label>Nom de la boutique *</label>
+      <input type="text" id="storeName" required placeholder="Ex: Chez Baptiste">
+      
+      <label>Téléphone (avec indicatif) *</label>
+      <input type="tel" id="phone" required placeholder="+221771234567">
+      
+      <label>Slug (auto-généré)</label>
+      <input type="text" id="slug" readonly style="background: rgba(251,191,36,0.05);">
+      
+      <label>Type de licence</label>
+      <select id="licenseType">
+        <option value="trial">Trial 15 jours</option>
+        <option value="pro">Pro Actif</option>
+      </select>
+      
+      <button type="submit" class="btn btn-primary">
+        ✨ CRÉER LE COMMERÇANT
+      </button>
+    </form>
+  </div>
+  
+  <div id="resultCard" class="card result">
+    <h1>✅ Commerçant créé !</h1>
+    
+    <div class="info-row">
+      <span class="info-label">Boutique</span>
+      <span class="info-value" id="outStoreName">—</span>
+    </div>
+    
+    <div class="info-row">
+      <span class="info-label">Téléphone</span>
+      <span class="info-value" id="outPhone">—</span>
+    </div>
+    
+    <div class="info-row">
+      <span class="info-label">PIN (4 derniers chiffres)</span>
+      <span class="info-value" id="outPin">—</span>
+    </div>
+    
+    <div class="info-row">
+      <span class="info-label">Slug</span>
+      <span class="info-value" id="outSlug">—</span>
+    </div>
+    
+    <label style="margin-top: 20px;">Lien d'accès :</label>
+    <div class="link-box" id="outLink">—</div>
+    
+    <div id="qrcode"></div>
+    
+    <button class="btn btn-success" onclick="sendWhatsApp()">
+      📲 Envoyer par WhatsApp
+    </button>
+    
+    <div class="note">
+      💡 Le commerçant doit ouvrir le lien et entrer les <strong>4 derniers chiffres</strong> de son téléphone comme PIN.
+    </div>
+    
+    <button class="btn btn-primary" onclick="reset()" style="margin-top: 15px;">
+      ➕ Créer un autre commerçant
+    </button>
+  </div>
+</div>
+
+<script>
+// =============================
+// SUPABASE INIT
+// =============================
+const SUPABASE_URL = "https://wesqmwjjtsefyjnluosj.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indlc3Ftd2pqdHNlZnlqbmx1b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxNzg4ODIsImV4cCI6MjA4MDc1NDg4Mn0.dZfYOc2iL2_wRYL3zExZFsFSBK6AbMeOid2LrIjcTdA";
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentMerchant = null;
+
+// =============================
+// AUTO-GENERATE SLUG
+// =============================
+document.getElementById('storeName').addEventListener('input', (e) => {
+  const name = e.target.value.trim();
+  const slug = name
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove accents
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  
+  document.getElementById('slug').value = slug;
+});
+
+// =============================
+// CREATE MERCHANT
+// =============================
+async function createMerchant(e) {
+  e.preventDefault();
+  
+  const storeName = document.getElementById('storeName').value.trim();
+  const phone = document.getElementById('phone').value.trim();
+  const slug = document.getElementById('slug').value.trim();
+  const licenseType = document.getElementById('licenseType').value;
+  
+  if (!storeName || !phone || !slug) {
+    return alert("Tous les champs sont requis");
+  }
+  
+  // Extract 4 derniers chiffres
+  const digits = phone.replace(/\D/g, '');
+  const pin = digits.slice(-4);
+  
+  if (pin.length !== 4) {
+    return alert("Le numéro de téléphone doit contenir au moins 4 chiffres");
+  }
+  
+  try {
+    // Generate unique owner_id
+    const owner_id = crypto.randomUUID();
+    
+    // Insert into go_pins
+    const { data, error } = await sb.from('go_pins').insert({
+      owner_id: owner_id,
+      slug: slug,
+      title: storeName,
+      phone: phone,
+      category: 'commerce',
+      is_active: true
+    }).select().single();
+    
+    if (error) throw error;
+    
+    // Create settings entry
+    await sb.from('digiy_caisse_settings').insert({
+      owner_id: owner_id,
+      store_name: storeName,
+      phone: phone,
+      is_pro: licenseType === 'pro'
+    });
+    
+    // Store result
+    currentMerchant = {
+      storeName,
+      phone,
+      pin,
+      slug,
+      link: `https://beauville.github.io/Digiy-caisse-pro/pin.html?slug=${slug}`
+    };
+    
+    // Show result
+    showResult();
+    
+  } catch (err) {
+    console.error(err);
+    alert("❌ Erreur: " + (err?.message || err));
+  }
+}
+
+// =============================
+// SHOW RESULT
+// =============================
+function showResult() {
+  document.getElementById('formCreate').parentElement.style.display = 'none';
+  document.getElementById('resultCard').classList.add('active');
+  
+  document.getElementById('outStoreName').textContent = currentMerchant.storeName;
+  document.getElementById('outPhone').textContent = currentMerchant.phone;
+  document.getElementById('outPin').textContent = currentMerchant.pin;
+  document.getElementById('outSlug').textContent = currentMerchant.slug;
+  document.getElementById('outLink').textContent = currentMerchant.link;
+  
+  // Generate QR Code
+  document.getElementById('qrcode').innerHTML = '';
+  QRCode.toCanvas(
+    currentMerchant.link,
+    { width: 200, margin: 2, color: { dark: '#fbbf24', light: '#1e293b' } },
+    (err, canvas) => {
+      if (!err) document.getElementById('qrcode').appendChild(canvas);
+    }
+  );
+}
+
+// =============================
+// SEND WHATSAPP
+// =============================
+function sendWhatsApp() {
+  const msg = `🦅 DIGIY CAISSE PRO
+
+Boutique : ${currentMerchant.storeName}
+PIN : ${currentMerchant.pin}
+
+Ton lien d'accès :
+${currentMerchant.link}
+
+✅ Ouvre le lien et entre ton PIN (les 4 derniers chiffres de ton téléphone)`;
+
+  const encoded = encodeURIComponent(msg);
+  const whatsappUrl = `https://wa.me/${currentMerchant.phone.replace(/\D/g, '')}?text=${encoded}`;
+  
+  window.open(whatsappUrl, '_blank');
+}
+
+// =============================
+// RESET
+// =============================
+function reset() {
+  document.getElementById('formCreate').parentElement.style.display = 'block';
+  document.getElementById('resultCard').classList.remove('active');
+  document.getElementById('formCreate').reset();
+  document.getElementById('slug').value = '';
+  currentMerchant = null;
+}
+</script>
+
+</body>
+</html>
