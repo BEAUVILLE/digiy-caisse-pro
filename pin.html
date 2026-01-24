@@ -158,11 +158,12 @@
       // ✅ Appel simplifié : loginWithPin(slug, pin)
       const res = await window.DIGIY_GUARD.loginWithPin(LIEU, pin);
 
-      if(!res || !res.ok){
-  show("❌ PIN incorrect.\n➡️ Vérifie les 4 derniers chiffres de ton téléphone.", "bad");
+   if(!res || !res.ok){
+  show("❌ " + (res?.error || "Accès refusé."), "bad");
   $("btnLogin").disabled = false;
   return;
 }
+
 
 
       console.log("✅ Login OK, owner_id:", res.session?.owner_id);
