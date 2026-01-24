@@ -98,14 +98,36 @@
   // =============================
   // PROTECTION DE PAGE
   // =============================
-  function requireSession(redirect = "pin.html") {
-    const s = getSession();
-    if (!s || !s.owner_id) {
-      location.replace(redirect);
-      return null;
-    }
-    return s;
+function getSlugFromUrl(){
+  try { return (new URL(location.href)).searchParams.get("slug"); } catch { return null; }
+}
+
+function getStickySlug(){
+  const u = (getSlugFromUrl() || "").trim();
+  if(u) {
+    sessionStorage.setItem("DIGIY_LAST_SLUG", u);
+    return u;
   }
+  return (sessionStorage.getItem("DIGIY_LAST_SLUG") || "").trim();
+}
+
+function withSlug(url){
+  const slug = getStickySlug();
+  if(!slug) return url;
+  return url.includes("?")
+    ? url + "&slug=" + encodeURIComponent(slug)
+    : url + "?slug=" + encodeURIComponent(slug);
+}
+   
+function requireSession(redirect = "pin.html") {
+  const s = getSession();
+  if (!s || !s.owner_id) {
+    location.replace(withSlug(redirect));
+    return null;
+  }
+  return s;
+}
+
 
   // =============================
   // BOOT (pour index.html)
@@ -126,9 +148,10 @@
   // LOGOUT
   // =============================
   function logout(redirect = "index.html") {
-    clearSession();
-    location.replace(redirect);
-  }
+  clearSession();
+  location.replace(withSlug(redirect));
+}
+
 
   // =============================
   // EXPORT
