@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>DIGIY CAISSE PRO — Royal Edition</title>
+
+  <!-- Supabase + Guard -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./guard.js?v=20260126-token30j-outbox"></script>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <style>
+    :root {
+      --gold:#fbbf24; --gold-dark:#d97706;
+      --bg:#0f172a; --card:#1e293b;
+      --text:#f8fafc; --muted:#94a3b8;
+      --glass:rgba(255,255,255,0.03);
+      --gradient:linear-gradient(135deg, #fbbf24 0%, #d97706 100%);
+      --green:#10b981;
+      --danger:#ef4444;
+      --blue:#0ea5e9;
+      --orange:#f97316;
+      --gray:#64748b;
+    }
+
+    *{margin:0;padding:0;box-sizing:border-box;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+    body{
+      background:var(--bg);
+      color:var(--text);
+      min-height:100vh;
+      background-image: radial-gradient(circle at top right, #1e293b, #0f172a);
+    }
+
+    /* LOCKSCREEN */
+    #lockScreen{
+      position:fixed; inset:0;
+      background: rgba(15,23,42,.98);
+      backdrop-filter: blur(18px);
+      z-index: 10000;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 16px;
+    }
+    .lock-box{
+      background: var(--card);
+      padding: 28px;
+      border-radius: 24px;
+      border: 1px solid rgba(251,191,36,.45);
+      text-align:center;
+      width: 100%;
+      max-width: 460px;
+      box-shadow: 0 0 50px rgba(251,191,36,.12);
+    }
+    .pay-link-btn{
+      display:block;width:100%;
+      padding: 16px;
+      background: var(--green);
+      color: white;
+      text-decoration:none;
+      border-radius: 14px;
+      font-weight: 950;
+      margin: 18px 0 14px;
+      transition:.2s;
+      border:none;
+      font-size: 14px;
+    }
+    .pay-link-btn:hover{ transform: translateY(-1px); filter: brightness(1.05); }
+    .gold-btn{
+      width:100%;
+      padding: 14px;
+      background: var(--gradient);
+      border:none;border-radius: 14px;
+      color:#000;
+      font-weight: 1000;
+      cursor:pointer;
+      margin-top: 12px;
+    }
+    #royalKey{
+      width:100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(148,163,184,.25);
+      background: rgba(0,0,0,.2);
+      color: var(--text);
+      outline: none;
+    }
+
+    /* HEADER */
+    .header{
+      padding: 18px 20px;
+      background: var(--glass);
+      border-bottom: 1px solid rgba(251,191,36,0.18);
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap: 12px;
+    }
+    .brand{ display:flex; align-items:center; gap: 12px; min-width: 0; }
+    .crown-icon{
+      width: 44px; height: 44px;
+      background: var(--gradient);
+      border-radius: 12px;
+      display:flex; align-items:center; justify-content:center;
+      color:#000;
+      font-size: 18px;
+      flex: 0 0 auto;
+    }
+    #storeDisp{
+      font-size: 16px;
+      font-weight: 1000;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 52vw;
+    }
+    #trialBadge{ font-size: 10px; color: var(--muted); font-weight: 900; margin-top: 3px; display:flex; gap: 8px; align-items:center; flex-wrap:wrap; }
+
+    .tag{
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-weight: 1000;
+      font-size: 9px;
+      display:inline-flex;
+      align-items:center;
+      gap: 6px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      color: var(--text);
+    }
+    .tag.gold{ border-color: rgba(251,191,36,.35); background: rgba(251,191,36,.12); color:#fde68a;}
+    .tag.red{ border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.12); color:#fecaca;}
+    .tag.green{ border-color: rgba(16,185,129,.35); background: rgba(16,185,129,.12); color:#bbf7d0;}
+    .tag.muted{ color: var(--muted); }
+
+    .headerRight{
+      display:flex;
+      align-items:flex-end;
+      flex-direction:column;
+      gap: 4px;
+      text-align:right;
+      flex: 0 0 auto;
+    }
+    .headerRight small{ color: var(--gold); font-weight: 1000; font-size: 10px; letter-spacing:.6px; }
+
+    /* NAV */
+    .nav-elite{
+      display:flex;
+      gap: 10px;
+      padding: 14px 16px;
+      overflow-x:auto;
+      scrollbar-width:none;
+    }
+    .nav-elite::-webkit-scrollbar{display:none}
+    .nav-link{
+      padding: 11px 18px;
+      background: var(--card);
+      border-radius: 12px;
+      color: var(--muted);
+      cursor:pointer;
+      border: 1px solid rgba(255,255,255,0.06);
+      transition:.2s;
+      font-weight: 900;
+      white-space: nowrap;
+      display:flex;
+      gap: 8px;
+      align-items:center;
+      user-select:none;
+    }
+    .nav-link.active{
+      background: var(--gradient);
+      color:#000;
+      border-color: rgba(251,191,36,.6);
+    }
+
+    .page{ display:none; }
+    .page.active{ display:block; animation: fadeIn .18s ease; }
+    @keyframes fadeIn{ from{opacity:0} to{opacity:1} }
+
+    /* LAYOUT */
+    .main-container{
+      padding: 16px;
+      display:grid;
+      grid-template-columns: 1fr 380px;
+      gap: 16px;
+    }
+    @media (max-width: 1100px){
+      .main-container{ grid-template-columns: 1fr; }
+      #storeDisp{ max-width: 64vw; }
+    }
+
+    /* PRODUCTS */
+    .products-listing{
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 12px;
+    }
+    .noble-card{
+      background: var(--card);
+      padding: 16px;
+      border-radius: 18px;
+      text-align:center;
+      border: 1px solid rgba(255,255,255,0.06);
+      transition:.18s;
+      cursor:pointer;
+      position:relative;
+      user-select:none;
+    }
+    .noble-card:hover{
+      transform: translateY(-2px);
+      border-color: rgba(251,191,36,.55);
+    }
+    .noble-card i{
+      font-size: 26px;
+      color: var(--gold);
+      margin-bottom: 10px;
+      display:block;
+    }
+    .pname{ font-weight: 1000; font-size: 13px; }
+    .pprice{ color: var(--gold); font-weight: 1000; margin-top: 6px; }
+    .pstock{ font-size: 10px; color: var(--muted); margin-top: 8px; }
+
+    /* CART */
+    .royal-cart{
+      background: var(--card);
+      border-radius: 22px;
+      padding: 18px;
+      border: 1px solid rgba(251,191,36,0.12);
+      height: fit-content;
+      position: sticky;
+      top: 14px;
+    }
+    .cart-scroll{
+      max-height: 320px;
+      overflow-y:auto;
+      margin: 12px 0;
+      padding-right: 6px;
+    }
+    .cart-row{
+      display:flex;justify-content:space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-size: 13px;
+      gap: 10px;
+    }
+    .cart-row b{ font-weight: 1000; }
+    .cart-row small{ color: var(--muted); font-weight: 900; display:block; margin-top: 2px; }
+
+    .qtyRow{
+      display:flex; gap:8px; align-items:center; justify-content:flex-end;
+    }
+    .qtyBtn{
+      border:none;
+      background: rgba(255,255,255,.06);
+      color:#fff;
+      border-radius: 10px;
+      padding: 6px 10px;
+      cursor:pointer;
+      font-weight: 1000;
+    }
+
+    .pay-grid{
+      display:grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .pay-btn{
+      padding: 14px;
+      border:none;
+      border-radius: 14px;
+      color:white;
+      font-weight: 1100;
+      cursor:pointer;
+      font-size: 11px;
+      text-transform: uppercase;
+      transition:.15s;
+    }
+    .pay-btn:hover{ transform: translateY(-1px); }
+    .pay-btn.full{ grid-column: span 2; }
+    .pay-btn.gray{ background: var(--gray); }
+    .pay-btn.cash{ background: var(--green); }
+    .pay-btn.wave{ background: var(--blue); }
+    .pay-btn.om{ background: var(--orange); }
+    .pay-btn.credit{ background: var(--danger); }
+
+    /* HISTORY */
+    .centerWrap{
+      padding: 16px;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    .form-card{
+      background: var(--card);
+      padding: 18px;
+      border-radius: 18px;
+      margin-bottom: 14px;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .dash-link{
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+      border: none !important;
+      color: #fff !important;
+    }
+
+    /* ADMIN */
+    input{
+      width:100%;
+      padding: 12px;
+      background: rgba(0,0,0,.18);
+      border: 1px solid rgba(148,163,184,.25);
+      border-radius: 12px;
+      color: white;
+      margin-top: 8px;
+      outline:none;
+      font-weight: 900;
+    }
+    input:focus{ border-color: rgba(251,191,36,.6); box-shadow: 0 0 0 3px rgba(251,191,36,.14); }
+
+    .inventory-item{
+      display:flex; justify-content:space-between; align-items:center;
+      padding: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      gap: 12px;
+    }
+    .trashBtn{
+      background:none; border:none;
+      color: var(--danger);
+      cursor:pointer;
+      font-size: 16px;
+    }
+
+    .muted{ color: var(--muted); font-weight: 900; }
+  </style>
+</head>
+
+<body>
+
+<!-- LOCKSCREEN (trial / licence) -->
+<div id="lockScreen">
+  <div class="lock-box">
+    <i class="fas fa-gem" style="font-size: 44px; color: var(--gold); margin-bottom: 10px;"></i>
+    <h2 style="margin-bottom: 6px; font-weight: 1100;">ESSAI TERMINÉ</h2>
+    <p style="color: var(--muted); margin-bottom: 12px; font-size: 13px; font-weight: 900;">
+      Pour continuer à utiliser ta caisse et débloquer les rapports, passe à la version Pro.
+    </p>
+
+    <a href="https://beauville.github.io/commencer-a-payer/" class="pay-link-btn">
+      <i class="fas fa-shopping-cart"></i>&nbsp; COMMENCER À PAYER
+    </a>
+
+    <div style="margin: 14px 0; color: var(--muted); font-size: 11px; font-weight: 1000;">
+      OU ENTREZ VOTRE CLÉ PERSONNELLE
+    </div>
+
+    <input type="text" id="royalKey" placeholder="XXXX-XXXX-XXXX-XXXX">
+    <button class="gold-btn" onclick="activate('royalKey')">ACTIVER</button>
+
+    <div class="muted" style="margin-top: 12px; font-size: 11px;">
+      Besoin d’aide ? WhatsApp DIGIY.
+    </div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="brand">
+    <div class="crown-icon"><i class="fas fa-eagle"></i></div>
+    <div style="min-width:0">
+      <div id="storeDisp">CHARGEMENT…</div>
+      <div id="trialBadge"></div>
+    </div>
+  </div>
+
+  <div class="headerRight">
+    <small>ROYAL EDITION</small>
+    <div class="tag muted" id="slugTag">slug: —</div>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav-elite">
+  <div class="nav-link active" onclick="tab('pos', this)"><i class="fas fa-store"></i> CAISSE</div>
+  <div class="nav-link" onclick="tab('history', this)"><i class="fas fa-history"></i> VENTES</div>
+  <div class="nav-link" onclick="tab('admin', this)"><i class="fas fa-cog"></i> GESTION</div>
+</div>
+
+<!-- PAGE POS -->
+<div id="posPage" class="page active">
+  <div class="main-container">
+    <div>
+      <div class="form-card">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between">
+          <div>
+            <div style="font-weight:1100">Produits</div>
+            <div class="muted" style="font-size:12px">Tape vite, vends vite. Stock géré.</div>
+          </div>
+          <div class="tag red" id="outboxBadge" style="display:none">OUTBOX 0</div>
+        </div>
+      </div>
+
+      <div id="productsGrid" class="products-listing"></div>
+    </div>
+
+    <div class="royal-cart">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <h3 style="font-size: 10px; color: var(--muted); text-transform:uppercase;letter-spacing:.8px;">PANIER</h3>
+        <div class="tag" id="onlineBadge">ONLINE</div>
+      </div>
+
+      <div id="cartListing" class="cart-scroll"></div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; border-top: 1px solid rgba(251,191,36,.45); padding-top: 12px;">
+        <b style="font-weight:1100">TOTAL</b>
+        <h2 id="totalPrice" style="color: var(--gold);">0 F</h2>
+      </div>
+
+      <div class="pay-grid">
+        <button class="pay-btn cash" onclick="checkout('CASH')">Cash</button>
+        <button class="pay-btn wave" onclick="checkout('WAVE')">Wave</button>
+        <button class="pay-btn om" onclick="checkout('OM')">Orange</button>
+        <button class="pay-btn credit" onclick="checkout('CREDIT')">Dette</button>
+        <button class="pay-btn gray full" onclick="clearCart()">VIDER LE PANIER</button>
+      </div>
+
+      <div class="muted" style="font-size:11px;margin-top:10px">
+        Astuce: si le réseau saute, ta vente part en OUTBOX et s’envoie toute seule.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE HISTORY -->
+<div id="historyPage" class="page">
+  <div class="centerWrap">
+    <div class="form-card" style="text-align:center;">
+      <small class="muted">RECETTE DU JOUR</small>
+      <h2 id="revDay" style="color:var(--green); font-size: 2.4rem; margin-top: 6px;">0 F</h2>
+      <div class="muted" id="revInfo" style="font-size:12px;margin-top:6px">—</div>
+    </div>
+    <div id="historyListing"></div>
+  </div>
+</div>
+
+<!-- PAGE ADMIN -->
+<div id="adminPage" class="page">
+  <div class="centerWrap">
+    <div class="form-card dash-link">
+      <h3 style="font-weight:1100"><i class="fas fa-chart-line"></i> DASHBOARD & COMPTABILITÉ</h3>
+      <button class="gold-btn" onclick="window.location.href=withSlug('dashboard.html')" style="background:white;color:#059669;">
+        OUVRIR LES RAPPORTS
+      </button>
+    </div>
+
+    <div class="form-card">
+      <h3 style="font-weight:1100">⚙️ PARAMÈTRES BOUTIQUE</h3>
+      <p class="muted" style="font-size:12px;margin-top:8px;">
+        Infos légales, TVA, mentions, etc.
+      </p>
+      <button class="gold-btn" onclick="goSettings()">OUVRIR LES PARAMÈTRES</button>
+    </div>
+
+    <div class="form-card">
+      <h3 style="font-weight:1100">📦 NOUVEAU PRODUIT</h3>
+      <input type="text" id="addName" placeholder="Désignation">
+      <input type="number" id="addPrice" placeholder="Prix">
+      <input type="number" id="addStock" placeholder="Stock">
+      <button class="gold-btn" onclick="addNew()">AJOUTER AU STOCK</button>
+      <div class="muted" style="font-size:11px;margin-top:8px">Tu peux mettre stock 0 si c’est à la demande.</div>
+    </div>
+
+    <div class="form-card">
+      <h3 style="font-weight:1100">🗑️ GESTION DU STOCK</h3>
+      <div id="inventoryManager"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   DIGIY CAISSE PRO — INDEX (TOKEN + OUTBOX) ✅
+   - Guard boot (session + token)
+   - Outbox localStorage (vente jamais perdue)
+   - RPC checkout token (safe)
+   - Badge outbox + online
+   - Slug conservé partout
+========================================================= */
+
+const TRIAL_LIMIT = 15;
+
+// ---------------------
+// UTIL
+// ---------------------
+function withSlug(url){
+  try{
+    const u = new URL(location.href);
+    const slug = (u.searchParams.get("slug") || "").trim();
+    if(!slug) return url;
+    return url.includes("?")
+      ? url + "&slug=" + encodeURIComponent(slug)
+      : url + "?slug=" + encodeURIComponent(slug);
+  }catch(e){
+    return url;
+  }
+}
+
+function fmt(n){
+  try{ return (n||0).toLocaleString(); }catch{ return String(n||0); }
+}
+
+function todayStr(){
+  return new Date().toLocaleDateString();
+}
+
+function makeTxnId(){
+  return "txn_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,10);
+}
+
+function getSB(){
+  return window.DIGIY_GUARD?.getSb?.() || null;
+}
+
+// ---------------------
+// STATE
+// ---------------------
+let State = {
+  owner_id: null,
+  slug: null,
+  phone: null,
+  title: null,
+  token: null,
+
+  pro: false,
+  storeName: "MA BOUTIQUE",
+
+  items: [],
+  sales: [],
+  cart: [],
+  settings: null
+};
+
+// ---------------------
+// OUTBOX LOCAL
+// ---------------------
+const OUTBOX_KEY = "DIGIY_CAISSE_OUTBOX_V1";
+let OUTBOX_FLUSHING = false;
+
+function outboxLoad(){
+  try{ return JSON.parse(localStorage.getItem(OUTBOX_KEY) || "[]"); }catch{ return []; }
+}
+function outboxSave(arr){
+  try{ localStorage.setItem(OUTBOX_KEY, JSON.stringify(arr || [])); }catch(e){ console.warn("outboxSave fail", e); }
+}
+function outboxEnqueue(entry){
+  const q = outboxLoad();
+  q.push(entry);
+  outboxSave(q);
+  return entry;
+}
+function outboxRemove(txn_id){
+  const q = outboxLoad().filter(x => x.txn_id !== txn_id);
+  outboxSave(q);
+}
+function outboxMark(txn_id, patch){
+  const q = outboxLoad();
+  const i = q.findIndex(x => x.txn_id === txn_id);
+  if(i >= 0){
+    q[i] = { ...q[i], ...patch };
+    outboxSave(q);
+  }
+}
+function outboxPending(){
+  return outboxLoad().filter(x => x.status === "pending");
+}
+function outboxCount(){
+  return outboxPending().length;
+}
+function updateOutboxBadge(){
+  const n = outboxCount();
+  const b = document.getElementById("outboxBadge");
+  if(!b) return;
+  if(n > 0){
+    b.style.display = "inline-flex";
+    b.textContent = "OUTBOX " + n;
+  }else{
+    b.style.display = "none";
+  }
+}
+
+// ---------------------
+// ONLINE badge
+// ---------------------
+function updateOnlineBadge(){
+  const el = document.getElementById("onlineBadge");
+  if(!el) return;
+  const ok = navigator.onLine;
+  el.className = "tag " + (ok ? "green" : "red");
+  el.textContent = ok ? "ONLINE" : "OFFLINE";
+}
+window.addEventListener("online", () => { updateOnlineBadge(); outboxFlush(); });
+window.addEventListener("offline", updateOnlineBadge);
+
+// ---------------------
+// INIT
+// ---------------------
+(async function init(){
+  updateOnlineBadge();
+
+  if(!window.DIGIY_GUARD || typeof window.DIGIY_GUARD.boot !== "function"){
+    console.warn("Guard absent.");
+    return;
+  }
+
+  // 🔒 Protège la page
+  const guardRes = await window.DIGIY_GUARD.boot({ login: "./pin.html" });
+  if(!guardRes?.ok) return;
+
+  const sess = window.DIGIY_GUARD.getSession?.() || null;
+  State.owner_id = sess?.owner_id || null;
+  State.slug = sess?.slug || getSlugFromUrl();
+  State.title = sess?.title || "";
+  State.phone = sess?.phone || "";
+  State.token = sess?.token || null;
+
+  document.getElementById("slugTag").textContent = "slug: " + (State.slug || "—");
+
+  if(!State.owner_id || !State.token){
+    console.warn("Session/token manquant -> PIN");
+    location.replace(withSlug("./pin.html"));
+    return;
+  }
+
+  await loadData();
+  render();
+
+  // Flush outbox au démarrage (si online)
+  if(navigator.onLine) outboxFlush();
+
+  // Refresh régulier
+  setInterval(() => {
+    updateOnlineBadge();
+    updateOutboxBadge();
+    if(navigator.onLine) outboxFlush();
+  }, 4000);
+})();
+
+function getSlugFromUrl(){
+  try{ return (new URL(location.href)).searchParams.get("slug"); }catch{ return null; }
+}
+
+// ---------------------
+// DATA LOAD
+// ---------------------
+async function loadData(){
+  const sb = getSB();
+  if(!sb || !State.owner_id) return;
+
+  // SETTINGS
+  try{
+    const { data: settings } = await sb
+      .from("digiy_caisse_settings")
+      .select("*")
+      .eq("owner_id", State.owner_id)
+      .maybeSingle();
+
+    if(settings){
+      State.settings = settings;
+      State.storeName = settings.store_name || (State.title || "MA BOUTIQUE");
+      State.pro = !!settings.is_pro;
+    }else{
+      await sb.from("digiy_caisse_settings").insert({
+        owner_id: State.owner_id,
+        store_name: State.title || "MA BOUTIQUE",
+        phone: State.phone || null
+      });
+      State.storeName = State.title || "MA BOUTIQUE";
+      State.pro = false;
+    }
+  }catch(e){
+    console.warn("settings load error", e);
+  }
+
+  // PRODUCTS
+  try{
+    const { data: products } = await sb
+      .from("digiy_caisse_products")
+      .select("*")
+      .eq("owner_id", State.owner_id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
+
+    State.items = products || [];
+  }catch(e){
+    console.warn("products load error", e);
+    State.items = [];
+  }
+
+  // SALES
+  try{
+    const { data: sales } = await sb
+      .from("digiy_caisse_sales")
+      .select("*")
+      .eq("owner_id", State.owner_id)
+      .order("created_at", { ascending: false })
+      .limit(120);
+
+    State.sales = sales || [];
+  }catch(e){
+    console.warn("sales load error", e);
+    State.sales = [];
+  }
+}
+
+// ---------------------
+// NAV
+// ---------------------
+function tab(id, btn){
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-link").forEach(l => l.classList.remove("active"));
+
+  const page = document.getElementById(id + "Page");
+  if(page) page.classList.add("active");
+  if(btn) btn.classList.add("active");
+
+  render();
+}
+
+// ---------------------
+// RENDER
+// ---------------------
+function render(){
+  updateOutboxBadge();
+
+  // Trial logic
+  const trialStart = State.settings?.trial_start || State.settings?.created_at || new Date().toISOString();
+  const diff = Date.now() - new Date(trialStart).getTime();
+  const passed = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const left = Math.max(0, TRIAL_LIMIT - passed);
+
+  if(!State.pro && left <= 0){
+    document.getElementById("lockScreen").style.display = "flex";
+  }else{
+    document.getElementById("lockScreen").style.display = "none";
+  }
+
+  document.getElementById("storeDisp").innerText = State.storeName || "MA BOUTIQUE";
+
+  // Tags (licence/trial + outbox)
+  const badge = document.getElementById("trialBadge");
+  const outN = outboxCount();
+  const licenceTag = State.pro
+    ? `<span class="tag gold">LICENCE ACTIVE</span>`
+    : `<span class="tag gold">TRIAL: ${left} JOURS</span>`;
+
+  const outTag = outN > 0
+    ? `<span class="tag red">OUTBOX ${outN}</span>`
+    : `<span class="tag muted">OK</span>`;
+
+  badge.innerHTML = licenceTag + outTag;
+
+  // Products
+  const grid = document.getElementById("productsGrid");
+  grid.innerHTML = (State.items || []).map(p => `
+    <div class="noble-card" onclick="addToCart('${p.id}')">
+      <i class="fas fa-tag"></i>
+      <div class="pname">${escapeHtml(p.name || "Produit")}</div>
+      <div class="pprice">${fmt(p.price)} F</div>
+      <div class="pstock">STK: ${fmt(p.stock ?? 0)}</div>
+    </div>
+  `).join("");
+
+  // Inventory manager
+  const inv = document.getElementById("inventoryManager");
+  inv.innerHTML = (State.items || []).map(p => `
+    <div class="inventory-item">
+      <div>
+        <div style="font-weight:1000">${escapeHtml(p.name || "")}</div>
+        <div class="muted" style="font-size:11px">Prix: ${fmt(p.price)} F • Stock: ${fmt(p.stock ?? 0)}</div>
+      </div>
+      <button class="trashBtn" onclick="removeItem('${p.id}')" title="Désactiver">
+        <i class="fas fa-trash"></i>
+      </button>
+    </div>
+  `).join("");
+
+  // Cart
+  const cartEl = document.getElementById("cartListing");
+  if(!State.cart.length){
+    cartEl.innerHTML = `<div class="muted" style="padding:10px 0">Panier vide.</div>`;
+  }else{
+    cartEl.innerHTML = State.cart.map(i => `
+      <div class="cart-row">
+        <div>
+          <b>${escapeHtml(i.name)}</b>
+          <small>${fmt(i.price)} F</small>
+        </div>
+        <div class="qtyRow">
+          <button class="qtyBtn" onclick="decQty('${i.id}')">−</button>
+          <b>x${i.qty}</b>
+          <button class="qtyBtn" onclick="incQty('${i.id}')">+</button>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  const total = State.cart.reduce((s, i) => s + (i.price * i.qty), 0);
+  document.getElementById("totalPrice").innerText = fmt(total) + " F";
+
+  // Day revenue
+  const t = todayStr();
+  const rev = (State.sales || [])
+    .filter(s => new Date(s.created_at).toLocaleDateString() === t)
+    .reduce((a, b) => a + (b.total || 0), 0);
+
+  document.getElementById("revDay").innerText = fmt(rev) + " F";
+  document.getElementById("revInfo").innerText = "Ventes chargées: " + (State.sales?.length || 0);
+}
+
+// ---------------------
+// HTML escape
+// ---------------------
+function escapeHtml(str){
+  return String(str || "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+// ---------------------
+// CART OPS
+// ---------------------
+function clearCart(){
+  State.cart = [];
+  render();
+}
+
+function addToCart(id){
+  const p = State.items.find(x => String(x.id) === String(id));
+  if(!p) return;
+
+  const stock = Number(p.stock ?? 0);
+  if(stock <= 0) return alert("Plus de stock !");
+
+  const inCart = State.cart.find(x => String(x.id) === String(id));
+  if(inCart){
+    if(inCart.qty + 1 > stock) return alert("Stock insuffisant");
+    inCart.qty++;
+  }else{
+    State.cart.push({ id: p.id, name: p.name, price: Number(p.price||0), stock: stock, qty: 1 });
+  }
+  render();
+}
+
+function incQty(id){
+  const it = State.cart.find(x => String(x.id) === String(id));
+  if(!it) return;
+  if(it.qty + 1 > (it.stock ?? 0)) return alert("Stock insuffisant");
+  it.qty++;
+  render();
+}
+
+function decQty(id){
+  const it = State.cart.find(x => String(x.id) === String(id));
+  if(!it) return;
+  it.qty--;
+  if(it.qty <= 0){
+    State.cart = State.cart.filter(x => String(x.id) !== String(id));
+  }
+  render();
+}
+
+// ---------------------
+// RPC checkout (token)
+// ---------------------
+async function rpcCheckoutOnce(payload){
+  const sb = getSB();
+  if(!sb) throw new Error("Supabase non disponible");
+
+  const sess = window.DIGIY_GUARD.getSession?.() || null;
+  const token = sess?.token || State.token || null;
+  if(!token) throw new Error("token invalide/expiré");
+
+  const items = payload.items.map(i => ({ id: i.id, qty: i.qty }));
+
+  const { data, error } = await sb.rpc("rpc_caisse_checkout_v1", {
+    p_token: token,
+    p_client_txn_id: payload.txn_id,
+    p_method: payload.method,
+    p_items: items
+  });
+
+  if(error) throw new Error(error.message || "RPC error");
+  const r = typeof data === "string" ? JSON.parse(data) : data;
+
+  if(!r || r.ok !== true){
+    throw new Error((r && r.message) ? r.message : "Checkout refusé");
+  }
+
+  return r;
+}
+
+// ---------------------
+// OUTBOX FLUSH
+// ---------------------
+async function outboxFlush(){
+  if(OUTBOX_FLUSHING) return;
+  if(!navigator.onLine) return;
+
+  OUTBOX_FLUSHING = true;
+  try{
+    const pending = outboxPending();
+    if(!pending.length){
+      updateOutboxBadge();
+      return;
+    }
+
+    for(const entry of pending){
+      // petit anti-boucle
+      const lastTry = entry.last_try ? new Date(entry.last_try).getTime() : 0;
+      if(Date.now() - lastTry < 1200) continue;
+
+      outboxMark(entry.txn_id, { last_try: new Date().toISOString(), tries: (entry.tries||0)+1 });
+
+      try{
+        await rpcCheckoutOnce(entry);
+        outboxRemove(entry.txn_id);
+        await loadData();
+        render();
+      }catch(e){
+        const msg = String(e?.message || e);
+        outboxMark(entry.txn_id, { last_error: msg, status: "pending" });
+
+        // si token invalide/expiré -> retour PIN
+        if(msg.toLowerCase().includes("token")){
+          alert("Session expirée. Reconnecte-toi avec ton PIN.");
+          location.replace(withSlug("./pin.html"));
+          return;
+        }
+      }
+    }
+
+    updateOutboxBadge();
+  }finally{
+    OUTBOX_FLUSHING = false;
+  }
+}
+
+// ---------------------
+// CHECKOUT (OUTBOX FIRST)
+// ---------------------
+async function checkout(method){
+  if(!State.cart.length) return;
+
+  if(!State.owner_id){
+    alert("Session invalide. Retour PIN.");
+    location.replace(withSlug("./pin.html"));
+    return;
+  }
+
+  const total = State.cart.reduce((s, i) => s + (i.price * i.qty), 0);
+  const txn_id = makeTxnId();
+
+  // OUTBOX enqueue
+  const entry = outboxEnqueue({
+    txn_id,
+    owner_id: State.owner_id,
+    slug: State.slug || null,
+    phone: State.phone || null,
+    method,
+    items: State.cart.map(i => ({ id: i.id, name: i.name, price: i.price, qty: i.qty })),
+    total_estimate: total,
+    status: "pending",
+    created_at: new Date().toISOString(),
+    tries: 0,
+    last_try: null,
+    last_error: null
+  });
+
+  // UX: vider panier direct
+  State.cart = [];
+  render();
+
+  // tentative immédiate
+  try{
+    if(!navigator.onLine) throw new Error("OFFLINE");
+    await rpcCheckoutOnce(entry);
+    outboxRemove(txn_id);
+
+    await loadData();
+    render();
+  }catch(e){
+    outboxMark(txn_id, { status: "pending", last_error: String(e?.message || e) });
+    alert("✅ Vente enregistrée en attente (OUTBOX). Elle sera envoyée dès que le réseau revient.");
+  }
+
+  outboxFlush();
+}
+
+// ---------------------
+// ADMIN: add product
+// ---------------------
+async function addNew(){
+  const sb = getSB();
+  if(!sb) return alert("Supabase non disponible");
+
+  const name = (document.getElementById("addName").value || "").trim();
+  const price = parseInt(document.getElementById("addPrice").value, 10);
+  const stock = parseInt(document.getElementById("addStock").value, 10) || 0;
+
+  if(!name || !Number.isFinite(price)) return alert("Nom et prix requis");
+
+  try{
+    const { error } = await sb.from("digiy_caisse_products").insert({
+      owner_id: State.owner_id,
+      name,
+      price,
+      stock,
+      is_active: true
+    });
+
+    if(error) throw error;
+
+    document.getElementById("addName").value = "";
+    document.getElementById("addPrice").value = "";
+    document.getElementById("addStock").value = "";
+
+    await loadData();
+    render();
+    alert("✅ Produit ajouté !");
+  }catch(e){
+    alert("❌ Erreur: " + (e?.message || e));
+  }
+}
+
+// ---------------------
+// ADMIN: remove product (soft)
+// ---------------------
+async function removeItem(id){
+  if(!confirm("Désactiver cet article ?")) return;
+
+  const sb = getSB();
+  if(!sb) return alert("Supabase non dispo");
+
+  try{
+    const { error } = await sb.from("digiy_caisse_products")
+      .update({ is_active: false })
+      .eq("id", id)
+      .eq("owner_id", State.owner_id);
+
+    if(error) throw error;
+
+    await loadData();
+    render();
+  }catch(e){
+    alert("❌ Erreur: " + (e?.message || e));
+  }
+}
+
+// ---------------------
+// ACTIVATE PRO (placeholder)
+// ---------------------
+async function activate(inputId){
+  const key = (document.getElementById(inputId).value || "").trim();
+  if(!key) return alert("Clé requise");
+
+  // ⚠️ Exemple simple. À relier à ton système licence propre.
+  if(key === "DIGIY-PRO-2026"){
+    const sb = getSB();
+    if(!sb) return alert("Supabase non dispo");
+
+    try{
+      const { error } = await sb.from("digiy_caisse_settings")
+        .update({ is_pro: true, pro_key: key })
+        .eq("owner_id", State.owner_id);
+
+      if(error) throw error;
+      location.reload();
+    }catch(e){
+      alert("❌ Erreur: " + (e?.message || e));
+    }
+  }else{
+    alert("Clé invalide !");
+  }
+}
+
+// ---------------------
+// GO SETTINGS
+// ---------------------
+function goSettings(){
+  const url = new URL("./settings.html", location.href);
+  if(State.slug) url.searchParams.set("slug", State.slug);
+  window.location.href = url.toString();
+}
+</script>
+</body>
+</html>
