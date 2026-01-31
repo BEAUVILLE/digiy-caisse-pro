@@ -3,191 +3,217 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-  <title>DIGIY CAISSE PRO ♾️ — Accès</title>
-  <meta name="theme-color" content="#fbbf24"/>
-
-  <!-- Supabase + Guard -->
+  <meta name="theme-color" content="#061b14"/>
+  <title>DIGIY — Porte PIN</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="./guard.js?v=20260124-astou"></script>
 
   <style>
     :root{
-      --bg:#0f172a; --bg2:#1e293b; --line:#334155;
-      --ink:#f8fafc; --muted:#94a3b8;
-      --gold:#fbbf24; --gold-dark:#d97706;
-      --shadow:0 22px 50px rgba(0,0,0,.55);
-      --card:rgba(255,255,255,.03);
+      --bg:#061b14; --card:#0b2a1f; --line:rgba(255,255,255,.14);
+      --text:#eafff1; --muted:rgba(234,255,241,.72);
+      --gold:#facc15; --ok:#22c55e; --bad:#fb7185;
+      --shadow:0 18px 55px rgba(0,0,0,.45); --r:18px;
     }
-    *{box-sizing:border-box;margin:0;padding:0}
+    *{box-sizing:border-box}
     body{
-      min-height:100vh;
-      font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-      color:var(--ink);
-      background:
-        radial-gradient(900px 520px at 12% -10%, rgba(251,191,36,.16), transparent 60%),
-        radial-gradient(900px 520px at 90% 0%, rgba(217,119,6,.12), transparent 60%),
-        linear-gradient(180deg, var(--bg2), var(--bg));
-      padding:16px;
-    }
-    .wrap{max-width:560px;margin:0 auto}
-    .top{
-      display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap;
-      padding:12px;border:1px solid var(--line);border-radius:18px;background:var(--card);
-      box-shadow:var(--shadow);
-    }
-    .brand{display:flex;gap:10px;align-items:center}
-    .logo{
-      width:44px;height:44px;border-radius:16px;
-      background:linear-gradient(135deg, rgba(251,191,36,.35), rgba(217,119,6,.2));
-      border:1px solid rgba(251,191,36,.35);
-      box-shadow:0 0 22px rgba(251,191,36,.12);
-      display:grid;place-items:center;color:#061b14;font-weight:1100;
-    }
-    .pill{
-      border:1px solid rgba(148,163,184,.35);
-      padding:7px 10px;border-radius:999px;background:rgba(255,255,255,.02);
-      color:var(--muted);font-weight:900;font-size:.86rem;
+      margin:0; min-height:100vh; display:grid; place-items:center;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto;
+      background:radial-gradient(circle at top, rgba(250,204,21,.10), transparent 55%),
+                 linear-gradient(135deg,#04160f,#0a2b1f);
+      color:var(--text); padding:18px;
     }
     .card{
-      margin-top:14px;border:1px solid var(--line);
-      background:rgba(255,255,255,.03);
-      border-radius:20px;box-shadow:var(--shadow);
-      padding:16px;
+      width:min(520px,92vw);
+      background:linear-gradient(145deg,rgba(11,42,31,.96),rgba(6,35,25,.96));
+      border:1px solid var(--line);
+      border-radius:22px;
+      box-shadow:var(--shadow);
+      padding:18px;
     }
-    h1{font-size:1.1rem;margin:0}
-    .sub{color:var(--muted);font-weight:800;margin-top:6px;line-height:1.35}
-    label{display:block;margin:14px 0 6px;font-weight:950;color:#fff}
+    .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .brand{display:flex;align-items:center;gap:10px}
+    .ico{
+      width:46px;height:46px;border-radius:50%;
+      display:grid;place-items:center;
+      background:radial-gradient(circle at 30% 0,var(--gold),transparent 60%);
+      color:#062015;font-weight:1000;
+      border:1px solid rgba(250,204,21,.35);
+    }
+    .t{font-weight:1000;letter-spacing:.12em;font-size:12px}
+    .sub{font-size:12px;color:var(--muted);margin-top:4px}
+    .pill{
+      border:1px solid var(--line);
+      background:rgba(250,204,21,.10);
+      padding:7px 10px;border-radius:999px;
+      font-size:12px;font-weight:900;
+    }
+    .sep{height:1px;background:var(--line);margin:14px 0}
+    label{display:block;font-size:12px;color:var(--muted);margin:8px 0 6px}
     input{
-      width:100%;border-radius:14px;border:1px solid var(--line);
-      background:rgba(0,0,0,.18);color:var(--ink);
-      padding:12px 12px;font-weight:900;outline:none;
+      width:100%; padding:14px 14px;
+      border-radius:14px; border:1px solid var(--line);
+      background:rgba(0,0,0,.22); color:var(--text);
+      font-size:16px; font-weight:900; letter-spacing:.14em;
+      outline:none;
     }
-    input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(251,191,36,.15)}
-    .row{display:flex;gap:10px;flex-wrap:wrap}
-    .btn{
-      width:100%;min-height:52px;border-radius:16px;border:1px solid var(--line);
-      background:rgba(255,255,255,.04);color:#fff;font-weight:1100;font-size:16px;
-      cursor:pointer;text-decoration:none;
-      display:flex;align-items:center;justify-content:center;
+    button{
+      width:100%; margin-top:12px; padding:14px 14px;
+      border-radius:14px; border:none;
+      background:linear-gradient(90deg,var(--ok),var(--gold));
+      color:#062015; font-weight:1000; font-size:15px;
+      cursor:pointer;
     }
-    .btn.primary{background:rgba(251,191,36,.12);border-color:rgba(251,191,36,.35)}
-    .btn:disabled{opacity:.55;cursor:not-allowed}
-    .note{
-      margin-top:12px;padding:10px 12px;border-radius:14px;border:1px solid rgba(148,163,184,.25);
-      background:rgba(255,255,255,.03);color:var(--muted);font-weight:900;white-space:pre-wrap;display:none;
-    }
-    .note.ok{display:block;border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.09);color:#fde68a}
-    .note.bad{display:block;border-color:rgba(239,68,68,.35);background:rgba(239,68,68,.09);color:#fecaca}
-    .note.warn{display:block;border-color:rgba(251,191,36,.35);background:rgba(251,191,36,.09);color:#fde68a}
+    button:disabled{opacity:.6; cursor:not-allowed}
+    .msg{margin-top:12px;font-size:12px;color:var(--muted);line-height:1.5}
+    .ok{color:var(--ok); font-weight:900}
+    .bad{color:var(--bad); font-weight:900}
+    .mini{margin-top:10px; font-size:12px; color:var(--muted)}
+    .mini b{color:var(--text)}
   </style>
 </head>
 
 <body>
-  <div class="wrap">
+  <div class="card">
     <div class="top">
       <div class="brand">
-        <div class="logo">🦅</div>
+        <div class="ico">🦅</div>
         <div>
-          <h1>DIGIY CAISSE PRO — Accès</h1>
-          <div class="sub">
-            Entre les <b>4 derniers chiffres</b> de ton téléphone pour ouvrir ta caisse.
-          </div>
+          <div class="t" id="title">PORTE PIN</div>
+          <div class="sub" id="subtitle">Chargement…</div>
         </div>
       </div>
-      <div class="pill" id="pillLieu">Lieu : —</div>
+      <div class="pill" id="modPill">—</div>
     </div>
 
-    <div class="card">
-      <label>4 derniers chiffres de ton téléphone</label>
-      <input id="pin" type="tel" inputmode="numeric" autocomplete="off" placeholder="5785" maxlength="4" />
+    <div class="sep"></div>
 
-      <div class="row" style="margin-top:12px">
-        <button class="btn primary" id="btnLogin" type="button">🔓 Ouvrir ma caisse</button>
-      </div>
-
-      <div class="note warn" id="note"></div>
+    <div class="mini">
+      SLUG : <b id="slugBox">—</b>
     </div>
+
+    <label for="pin">Entre ton PIN</label>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="one-time-code" placeholder="••••" maxlength="8"/>
+
+    <button id="go">🚀 ENTRER</button>
+
+    <div class="msg" id="msg"></div>
   </div>
 
 <script>
-(function(){
-  "use strict";
+(async () => {
+  // =========================
+  // ✅ À RÉGLER PAR MODULE
+  // =========================
+ const MODULE_CODE="caisse_pro";
+const NEXT_URL="index.html";
+
+  // =========================
+  // SUPABASE (TES CLÉS)
+  // =========================
+  const SUPABASE_URL = "https://wesqmwjjtsefyjnluosj.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indlc3Ftd2pqdHNlZnlqbmx1b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxNzg4ODIsImV4cCI6MjA4MDc1NDg4Mn0.dZfYOc2iL2_wRYL3zExZFsFSBK6AbMeOid2LrIjcTdA";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // =========================
+  // UI
+  // =========================
   const $ = (id)=>document.getElementById(id);
+  $("modPill").textContent = MODULE_CODE;
+  $("title").textContent = "PORTE PIN — " + MODULE_CODE.toUpperCase();
 
-  function show(msg, cls){
-    const el = $("note");
-    el.className = "note " + (cls || "warn");
-    el.textContent = msg || "";
-    el.style.display = msg ? "block" : "none";
-  }
-  function withSlug(url){
-  const slug = new URL(location.href).searchParams.get("slug");
-  if(!slug) return url;
-  return url.includes("?")
-    ? url + "&slug=" + encodeURIComponent(slug)
-    : url + "?slug=" + encodeURIComponent(slug);
-}
+  // slug depuis URL
+  const url = new URL(location.href);
+  const slug = (url.searchParams.get("slug") || "").trim().toLowerCase();
 
-  // --- LIEU (slug) ---
-  const u = new URL(location.href);
-  const LIEU = (u.searchParams.get("slug") || "").trim().replace(/\/+$/,"").toLowerCase();
+  $("slugBox").textContent = slug || "—";
+  $("subtitle").textContent = slug ? "Accès sécurisé — PIN requis" : "SLUG manquant";
 
-  $("pillLieu").textContent = "Lieu : " + (LIEU || "—");
+  const msg = (html)=>{ $("msg").innerHTML = html; };
 
-  if(!LIEU){
-    show("⚠️ Lien incomplet.\n➡️ Contacte ton admin pour obtenir ton lien d'accès.", "bad");
+  if(!slug){
+    msg(`<span class="bad">❌ SLUG manquant.</span><br>Reviens depuis ton Espace PRO (bouton “Entrer”).`);
+    $("go").disabled = true;
+    return;
   }
 
-  async function doLogin(){
-    if(!LIEU){
-      show("❌ Lieu manquant.\n➡️ Contacte ton admin.", "bad");
+  // auto-focus
+  setTimeout(()=>$("pin").focus(), 150);
+
+  function saveSessions(payload){
+    const session = {
+      slug: payload.slug,
+      phone: payload.phone,
+      owner_id: payload.owner_id,
+      module: payload.module || MODULE_CODE,
+      ts: Date.now()
+    };
+
+    // ✅ session universelle (HUB)
+    localStorage.setItem("DIGIY_ACCESS", JSON.stringify({
+      slug: session.slug,
+      phone: session.phone,
+      owner_id: session.owner_id,
+      ts: session.ts
+    }));
+
+    // ✅ session spécifique module
+    localStorage.setItem("DIGIY_SESSION_" + MODULE_CODE.toUpperCase(), JSON.stringify(session));
+  }
+
+  async function enter(){
+    const pin = $("pin").value.trim();
+    if(pin.length < 3){
+      msg(`<span class="bad">❌ PIN invalide.</span>`);
       return;
     }
 
-    const pin = ($("pin").value || "").trim();
+    $("go").disabled = true;
+    msg(`Vérification en cours…`);
 
-    if(!pin || pin.length < 4){
-      show("⚠️ Entre les 4 derniers chiffres de ton téléphone.", "warn");
+    const { data, error } = await sb.rpc("digiy_verify_access", {
+      p_slug: slug,
+      p_pin: pin,
+      p_module: MODULE_CODE
+    });
+
+    if(error){
+      $("go").disabled = false;
+      msg(`<span class="bad">❌ Erreur.</span><br>${String(error.message || error)}`);
       return;
     }
 
-    $("btnLogin").disabled = true;
-    show("⏳ Vérification…", "warn");
+    if(!data?.ok){
+      $("go").disabled = false;
 
-    try{
-      // ✅ Appel simplifié : loginWithPin(slug, pin)
-      const res = await window.DIGIY_GUARD.loginWithPin(LIEU, pin);
+      if(data?.reason === "module_inactive"){
+        msg(`<span class="bad">🔒 Module non actif.</span><br>
+             Ce module n’est pas encore activé pour ce pro.<br>
+             <span style="opacity:.85">Modules actifs: ${(data.modules_active||[]).join(", ")}</span>`);
+        return;
+      }
 
-   if(!res || !res.ok){
-  show("❌ " + (res?.error || "Accès refusé."), "bad");
-  $("btnLogin").disabled = false;
-  return;
-}
-
-
-
-      console.log("✅ Login OK, owner_id:", res.session?.owner_id);
-
-      show("✅ OK. Ouverture de la caisse…", "ok");
-      
-      // ✅ Redirige vers index.html
-      setTimeout(() => {
-        const dashboardUrl = new URL("./index.html", location.href);
-        dashboardUrl.searchParams.set("slug", LIEU);
-        location.replace(dashboardUrl.toString());
-      }, 800);
-
-    }catch(e){
-      console.error(e);
-      show("❌ Problème technique.\n➡️ Réessaie dans 10 secondes.\nDétail: " + (e?.message || e), "bad");
-      $("btnLogin").disabled = false;
+      msg(`<span class="bad">❌ Accès refusé.</span><br>PIN incorrect.`);
+      return;
     }
+
+    // ✅ OK
+    saveSessions(data);
+    msg(`<span class="ok">✅ Accès validé.</span> Ouverture du cockpit…`);
+
+    // petit délai pour rendre l'UX "velours"
+    setTimeout(()=>{
+      // On conserve le slug dans l'URL si tu veux (pratique debug)
+      const next = new URL(NEXT_URL, location.href);
+      next.searchParams.set("slug", slug);
+      location.href = next.toString();
+    }, 450);
   }
 
-  $("btnLogin").addEventListener("click", doLogin);
-  $("pin").addEventListener("keydown", (e)=>{ if(e.key==="Enter") doLogin(); });
+  $("go").addEventListener("click", enter);
+  $("pin").addEventListener("keydown", (e)=>{
+    if(e.key === "Enter") enter();
+  });
 
-  setTimeout(()=> $("pin").focus(), 120);
 })();
 </script>
 </body>
