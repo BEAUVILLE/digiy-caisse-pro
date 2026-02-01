@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta name="theme-color" content="#061b14"/>
+  <title>DIGIY QR PRO — Porte PIN</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root{
+      --bg:#061b14; --card:#0b2a1f; --line:rgba(255,255,255,.14);
+      --text:#eafff1; --muted:rgba(234,255,241,.72);
+      --gold:#facc15; --ok:#22c55e; --bad:#fb7185;
+      --shadow:0 18px 55px rgba(0,0,0,.45); --r:18px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; min-height:100vh; display:grid; place-items:center;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto;
+      background:radial-gradient(circle at top, rgba(250,204,21,.10), transparent 55%),
+                 linear-gradient(135deg,#04160f,#0a2b1f);
+      color:var(--text); padding:18px;
+    }
+    .card{
+      width:min(520px,92vw);
+      background:linear-gradient(145deg,rgba(11,42,31,.96),rgba(6,35,25,.96));
+      border:1px solid var(--line);
+      border-radius:22px;
+      box-shadow:var(--shadow);
+      padding:18px;
+    }
+    .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .brand{display:flex;align-items:center;gap:10px}
+    .ico{
+      width:46px;height:46px;border-radius:50%;
+      display:grid;place-items:center;
+      background:radial-gradient(circle at 30% 0,var(--gold),transparent 60%);
+      color:#062015;font-weight:1000;
+      border:1px solid rgba(250,204,21,.35);
+    }
+    .t{font-weight:1000;letter-spacing:.12em;font-size:12px}
+    .sub{font-size:12px;color:var(--muted);margin-top:4px}
+    .pill{
+      border:1px solid var(--line);
+      background:rgba(250,204,21,.10);
+      padding:7px 10px;border-radius:999px;
+      font-size:12px;font-weight:900;
+    }
+    .sep{height:1px;background:var(--line);margin:14px 0}
+    label{display:block;font-size:12px;color:var(--muted);margin:8px 0 6px}
+    input{
+      width:100%; padding:14px 14px;
+      border-radius:14px; border:1px solid var(--line);
+      background:rgba(0,0,0,.22); color:var(--text);
+      font-size:16px; font-weight:900; letter-spacing:.14em;
+      outline:none;
+    }
+    button{
+      width:100%; margin-top:12px; padding:14px 14px;
+      border-radius:14px; border:none;
+      background:linear-gradient(90deg,var(--ok),var(--gold));
+      color:#062015; font-weight:1000; font-size:15px;
+      cursor:pointer;
+    }
+    button:disabled{opacity:.6; cursor:not-allowed}
+    .msg{margin-top:12px;font-size:12px;color:var(--muted);line-height:1.5}
+    .ok{color:var(--ok); font-weight:900}
+    .bad{color:var(--bad); font-weight:900}
+    .mini{margin-top:10px; font-size:12px; color:var(--muted)}
+    .mini b{color:var(--text)}
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <div class="top">
+      <div class="brand">
+        <div class="ico">🦅</div>
+        <div>
+          <div class="t" id="title">PORTE PIN</div>
+          <div class="sub" id="subtitle">Chargement…</div>
+        </div>
+      </div>
+      <div class="pill" id="modPill">—</div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="mini">
+      SLUG : <b id="slugBox">—</b>
+    </div>
+
+    <label for="pin">Entre ton PIN</label>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="one-time-code" placeholder="••••" maxlength="8"/>
+
+    <button id="go">🚀 ENTRER</button>
+
+    <div class="msg" id="msg"></div>
+  </div>
+
+<script>
+(async () => {
+  // =========================
+  // ✅ MODULE QR PRO
+  // =========================
+  const MODULE_CODE = "qr_pro";
+  const NEXT_URL    = "index.html";
+
+  // =========================
+  // SUPABASE (TES CLÉS)
+  // =========================
+  const SUPABASE_URL = "https://wesqmwjjtsefyjnluosj.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Indlc3Ftd2pqdHNlZnlqbmx1b3NqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUxNzg4ODIsImV4cCI6MjA4MDc1NDg4Mn0.dZfYOc2iL2_wRYL3zExZFsFSBK6AbMeOid2LrIjcTdA";
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const $ = (id)=>document.getElementById(id);
+  $("modPill").textContent = MODULE_CODE;
+  $("title").textContent = "PORTE PIN — " + MODULE_CODE.toUpperCase();
+
+  // slug depuis URL ?slug=
+  const url = new URL(location.href);
+  const slug = (url.searchParams.get("slug") || "").trim().toLowerCase();
+
+  $("slugBox").textContent = slug || "—";
+  $("subtitle").textContent = slug ? "Accès sécurisé — PIN requis" : "SLUG manquant";
+
+  const msg = (html)=>{ $("msg").innerHTML = html; };
+
+  if(!slug){
+    msg(`<span class="bad">❌ SLUG manquant.</span><br>Reviens depuis ton Espace PRO / QR Factory (lien avec ?slug=...).`);
+    $("go").disabled = true;
+    return;
+  }
+
+  setTimeout(()=>$("pin").focus(), 150);
+
+  function saveSessions(payload){
+    const session = {
+      slug: payload.slug || slug,
+      phone: payload.phone || null,
+      owner_id: payload.owner_id,
+      module: payload.module || MODULE_CODE,
+      ts: Date.now()
+    };
+
+    // ✅ session universelle (HUB)
+    localStorage.setItem("DIGIY_ACCESS", JSON.stringify({
+      slug: session.slug,
+      phone: session.phone,
+      owner_id: session.owner_id,
+      ts: session.ts
+    }));
+
+    // ✅ session module
+    localStorage.setItem("DIGIY_SESSION_" + MODULE_CODE.toUpperCase(), JSON.stringify(session));
+  }
+
+  async function enter(){
+    const pin = $("pin").value.trim();
+    if(pin.length < 3){
+      msg(`<span class="bad">❌ PIN invalide.</span>`);
+      return;
+    }
+
+    $("go").disabled = true;
+    msg(`Vérification en cours…`);
+
+    const { data, error } = await sb.rpc("digiy_verify_access", {
+      p_slug: slug,
+      p_pin: pin,
+      p_module: MODULE_CODE
+    });
+
+    if(error){
+      $("go").disabled = false;
+      msg(`<span class="bad">❌ Erreur.</span><br>${String(error.message || error)}`);
+      return;
+    }
+
+    if(!data?.ok){
+      $("go").disabled = false;
+
+      if(data?.reason === "module_inactive"){
+        msg(`<span class="bad">🔒 Module non actif.</span><br>
+             Ce module n’est pas encore activé pour ce pro.<br>
+             <span style="opacity:.85">Modules actifs: ${(data.modules_active||[]).join(", ")}</span>`);
+        return;
+      }
+
+      msg(`<span class="bad">❌ Accès refusé.</span><br>PIN incorrect.`);
+      return;
+    }
+
+    // ✅ OK
+    saveSessions(data);
+    msg(`<span class="ok">✅ Accès validé.</span> Ouverture…`);
+
+    setTimeout(()=>{
+      const next = new URL(NEXT_URL, location.href);
+      next.searchParams.set("slug", slug);
+      location.href = next.toString();
+    }, 450);
+  }
+
+  $("go").addEventListener("click", enter);
+  $("pin").addEventListener("keydown", (e)=>{
+    if(e.key === "Enter") enter();
+  });
+
+})();
+</script>
+</body>
+</html>
