@@ -120,6 +120,18 @@
 
   // slug depuis URL ?slug=
   const url = new URL(location.href);
+  // =========================
+// MODE DEMO 15 JOURS
+// =========================
+const trial = url.searchParams.get("trial"); // "1" = demo
+if(trial === "1"){
+  // pas de paiement, pas de pin
+  // on redirige vers l'index en mode demo
+  const next = new URL("index.html", location.href);
+  next.searchParams.set("trial","1");
+  location.replace(next.toString());
+  return;
+}
   const slug = (url.searchParams.get("slug") || "").trim().toLowerCase();
 
   $("slugBox").textContent = slug || "—";
