@@ -346,7 +346,8 @@ function setNetBadge(){
    - idempotent via client_txn_id
 ============================= */
 function getSlugSafe(){
-  return String(State.slug || "").toLowerCase() || "noslug";
+  const s = String(State.slug || "").trim().toLowerCase();
+  return s || "noslug";
 }
 function getSalesKey(){
   return "DIGIY_CAISSE_TICKETS::" + getSlugSafe();
@@ -360,7 +361,7 @@ function localSalesLoad(){
 function localSalesSave(arr){
   localStorage.setItem(getSalesKey(), JSON.stringify(arr || []));
 }
-function dayKeyNow(){ return new Date().toISOString().slice(0,10); } // YYYY-MM-DD
+function dayKeyNow(){ return new Date().toISOString().slice(0,10); } // YYYY-MM-DD (UTC)
 
 function localAddTicket({ client_txn_id, method, total, items = [], note = "" }){
   const rows = localSalesLoad();
@@ -396,21 +397,24 @@ function localMarkSynced(client_txn_id){
   }
 }
 
-// =============================
-// OUTBOX
-// =============================
-const OUTBOX_KEY = "DIGIY_CAISSE_OUTBOX_V1";
+/* =============================
+   ✅ OUTBOX (par slug)
+============================= */
+function getOutboxKey(){
+  return "DIGIY_CAISSE_OUTBOX_V1::" + getSlugSafe();
+}
+
 let OUTBOX_FLUSHING = false;
 
 function outboxLoad(){
   try{
-    const raw = localStorage.getItem(OUTBOX_KEY);
+    const raw = localStorage.getItem(getOutboxKey());
     const arr = raw ? JSON.parse(raw) : [];
     return Array.isArray(arr) ? arr : [];
   }catch(e){ return []; }
 }
 function outboxSave(arr){
-  localStorage.setItem(OUTBOX_KEY, JSON.stringify(arr || []));
+  localStorage.setItem(getOutboxKey(), JSON.stringify(arr || []));
 }
 function outboxCount(){
   return outboxLoad().length;
@@ -495,7 +499,6 @@ async function outboxFlush(){
 
         if(res?.ok){
           okCount++;
-          // ✅ marque synced côté local mirror
           localMarkSynced(job.txn_id);
           continue;
         }
@@ -566,7 +569,7 @@ function outboxInit(){
 
   setTimeout(() => { if(navigator.onLine) outboxFlush(); }, 900);
 }
-  if(IS_TRIAL) return; // ✅ en mode demo, on ne lance pas le PRO
+
 // =============================
 // INIT + PROTECTION
 // =============================
@@ -702,25 +705,30 @@ function render(){
 
   // produits
   const grid = document.getElementById("productsGrid");
-  grid.innerHTML = (State.items || []).map(p => {
-    const out = (p.stock <= 0);
-    return `
-      <div class="noble-card" onclick="addToCart('${p.id}')">
-        <i class="fas fa-tag"></i>
-        <div class="pname">${escapeHtml(p.name || "Article")}</div>
-        <div class="pprice">${Number(p.price||0).toLocaleString()} F</div>
-        <div class="pstock ${out ? 'out':''}">STK: ${Number(p.stock||0)}</div>
-      </div>
-    `;
-  }).join("");
+  if(grid){
+    grid.innerHTML = (State.items || []).map(p => {
+      const out = (Number(p.stock||0) <= 0);
+      return `
+        <div class="noble-card" onclick="addToCart('${p.id}')">
+          <i class="fas fa-tag"></i>
+          <div class="pname">${escapeHtml(p.name || "Article")}</div>
+          <div class="pprice">${Number(p.price||0).toLocaleString()} F</div>
+          <div class="pstock ${out ? 'out':''}">STK: ${Number(p.stock||0)}</div>
+        </div>
+      `;
+    }).join("");
+  }
 
   // inventory
-  document.getElementById("inventoryManager").innerHTML = (State.items || []).map(p => `
-    <div class="inventory-item">
-      <span>${escapeHtml(p.name || "Article")} <small class="muted">(${Number(p.stock||0)} stk)</small></span>
-      <button class="trashBtn" onclick="removeItem('${p.id}')"><i class="fas fa-trash"></i></button>
-    </div>
-  `).join("");
+  const inv = document.getElementById("inventoryManager");
+  if(inv){
+    inv.innerHTML = (State.items || []).map(p => `
+      <div class="inventory-item">
+        <span>${escapeHtml(p.name || "Article")} <small class="muted">(${Number(p.stock||0)} stk)</small></span>
+        <button class="trashBtn" onclick="removeItem('${p.id}')"><i class="fas fa-trash"></i></button>
+      </div>
+    `).join("") || "—";
+  }
 
   // panier
   document.getElementById("cartListing").innerHTML = (State.cart || []).map(i => `
@@ -733,9 +741,12 @@ function render(){
   const total = (State.cart || []).reduce((s, i) => s + (i.price * i.qty), 0);
   document.getElementById("totalPrice").innerText = total.toLocaleString() + " F";
 
-  // stats du jour (server sales)
-  const today = new Date().toLocaleDateString();
-  const todays = (State.sales || []).filter(s => new Date(s.created_at).toLocaleDateString() === today);
+  // stats du jour (plus fiable: dayKey UTC)
+  const todayKey = dayKeyNow();
+  const todays = (State.sales || []).filter(s => {
+    const k = (s.created_at ? String(s.created_at).slice(0,10) : "");
+    return k === todayKey;
+  });
   const rev = todays.reduce((a, b) => a + Number(b.total||0), 0);
   document.getElementById("revDay").innerText = rev.toLocaleString() + " F";
   document.getElementById("salesCount").textContent = `${todays.length} vente(s) aujourd’hui`;
