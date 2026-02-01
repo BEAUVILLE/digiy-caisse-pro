@@ -297,6 +297,7 @@
    - Guard token 30j
    - Checkout RPC safe + idempotent
    - Outbox localStorage (offline-proof)
+   - ✅ Local mirror par slug (dashboard compat)
 ============================= */
 
 const TRIAL_LIMIT = 15;
@@ -336,6 +337,62 @@ function setNetBadge(){
   }else{
     el.className = "badge red";
     el.textContent = "OFFLINE";
+  }
+}
+
+/* =============================
+   ✅ LOCAL MIRROR (Dashboard compat)
+   - clé par slug
+   - idempotent via client_txn_id
+============================= */
+function getSlugSafe(){
+  return String(State.slug || "").toLowerCase() || "noslug";
+}
+function getSalesKey(){
+  return "DIGIY_CAISSE_TICKETS::" + getSlugSafe();
+}
+function localSalesLoad(){
+  try{
+    const arr = JSON.parse(localStorage.getItem(getSalesKey()) || "[]");
+    return Array.isArray(arr) ? arr : [];
+  }catch(_){ return []; }
+}
+function localSalesSave(arr){
+  localStorage.setItem(getSalesKey(), JSON.stringify(arr || []));
+}
+function dayKeyNow(){ return new Date().toISOString().slice(0,10); } // YYYY-MM-DD
+
+function localAddTicket({ client_txn_id, method, total, items = [], note = "" }){
+  const rows = localSalesLoad();
+  if(client_txn_id && rows.some(r => r.client_txn_id === client_txn_id)) return;
+
+  const t = {
+    id: (crypto?.randomUUID ? crypto.randomUUID() : ("id_"+Math.random().toString(16).slice(2)+Date.now())),
+    client_txn_id: client_txn_id || null,
+    slug: getSlugSafe(),
+    owner_id: State.owner_id || null,
+    total: Number(total) || 0,
+    method: String(method || "cash"),
+    note: String(note || ""),
+    items: items || [],
+    archived: false,
+    synced: false,
+    created_at: new Date().toISOString(),
+    day_key: dayKeyNow()
+  };
+
+  rows.unshift(t);
+  localSalesSave(rows);
+}
+
+function localMarkSynced(client_txn_id){
+  if(!client_txn_id) return;
+  const rows = localSalesLoad();
+  const idx = rows.findIndex(r => r.client_txn_id === client_txn_id);
+  if(idx >= 0){
+    rows[idx].synced = true;
+    rows[idx].synced_at = new Date().toISOString();
+    localSalesSave(rows);
   }
 }
 
@@ -438,6 +495,8 @@ async function outboxFlush(){
 
         if(res?.ok){
           okCount++;
+          // ✅ marque synced côté local mirror
+          localMarkSynced(job.txn_id);
           continue;
         }
 
@@ -674,7 +733,7 @@ function render(){
   const total = (State.cart || []).reduce((s, i) => s + (i.price * i.qty), 0);
   document.getElementById("totalPrice").innerText = total.toLocaleString() + " F";
 
-  // stats du jour
+  // stats du jour (server sales)
   const today = new Date().toLocaleDateString();
   const todays = (State.sales || []).filter(s => new Date(s.created_at).toLocaleDateString() === today);
   const rev = todays.reduce((a, b) => a + Number(b.total||0), 0);
@@ -734,6 +793,7 @@ function addToCart(id){
 
 // =============================
 // CHECKOUT (OUTBOX-FIRST) -> RPC
+// + ✅ Local mirror instant (dashboard)
 // =============================
 async function checkout(method){
   if(!State.cart.length) return;
@@ -747,6 +807,16 @@ async function checkout(method){
 
   const payloadItems = State.cart.map(i => ({ id: i.id, qty: i.qty }));
   const txnId = makeTxnId();
+  const total = State.cart.reduce((s, i) => s + (Number(i.price||0) * Number(i.qty||0)), 0);
+
+  // ✅ 0) MIRROR LOCAL (pour dashboard.html)
+  localAddTicket({
+    client_txn_id: txnId,
+    method: String(method || "cash").toLowerCase(),
+    total,
+    items: payloadItems,
+    note: State.cart.map(i => `${i.name} x${i.qty}`).join(" | ")
+  });
 
   // 1) enqueue (zéro perte)
   outboxEnqueue({
